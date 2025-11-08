@@ -771,6 +771,286 @@ async def list_tools() -> list[Tool]:
                 "required": ["metastore_id"],
             },
         ),
+        # ============ SQL Statement Execution ============
+        Tool(
+            name="execute_statement",
+            description="Execute a SQL statement on a SQL warehouse and return results",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "warehouse_id": {
+                        "type": "string",
+                        "description": "The SQL warehouse ID to execute the statement on",
+                    },
+                    "statement": {
+                        "type": "string",
+                        "description": "The SQL statement to execute",
+                    },
+                    "catalog": {
+                        "type": "string",
+                        "description": "The catalog to use (optional)",
+                    },
+                    "schema": {
+                        "type": "string",
+                        "description": "The schema to use (optional)",
+                    },
+                    "wait_timeout": {
+                        "type": "string",
+                        "description": "Time to wait for results (e.g., '30s'). Use '0s' for async execution. Default is '10s'",
+                    },
+                    "row_limit": {
+                        "type": "integer",
+                        "description": "Maximum number of rows to return",
+                    },
+                },
+                "required": ["warehouse_id", "statement"],
+            },
+        ),
+        Tool(
+            name="get_statement",
+            description="Get the status and results of a SQL statement execution",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "statement_id": {
+                        "type": "string",
+                        "description": "The statement ID returned from execute_statement",
+                    }
+                },
+                "required": ["statement_id"],
+            },
+        ),
+        Tool(
+            name="cancel_statement_execution",
+            description="Cancel an executing SQL statement",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "statement_id": {
+                        "type": "string",
+                        "description": "The statement ID to cancel",
+                    }
+                },
+                "required": ["statement_id"],
+            },
+        ),
+        # ============ Genie (AI/BI) ============
+        Tool(
+            name="start_genie_conversation",
+            description="Start a new conversation in a Genie space",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The Genie space ID",
+                    }
+                },
+                "required": ["space_id"],
+            },
+        ),
+        Tool(
+            name="create_genie_message",
+            description="Create a message in a Genie conversation (ask Genie a question)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The Genie space ID",
+                    },
+                    "conversation_id": {
+                        "type": "string",
+                        "description": "The conversation ID",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "The message content (your question to Genie)",
+                    },
+                },
+                "required": ["space_id", "conversation_id", "content"],
+            },
+        ),
+        Tool(
+            name="get_genie_message",
+            description="Get details of a specific message in a Genie conversation",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {"type": "string", "description": "The Genie space ID"},
+                    "conversation_id": {"type": "string", "description": "The conversation ID"},
+                    "message_id": {"type": "string", "description": "The message ID"},
+                },
+                "required": ["space_id", "conversation_id", "message_id"],
+            },
+        ),
+        Tool(
+            name="get_genie_message_query_result",
+            description="Get SQL query result from a Genie message that executed a query",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {"type": "string", "description": "The Genie space ID"},
+                    "conversation_id": {"type": "string", "description": "The conversation ID"},
+                    "message_id": {"type": "string", "description": "The message ID"},
+                    "attachment_id": {
+                        "type": "string",
+                        "description": "The attachment ID (query attachment)",
+                    },
+                },
+                "required": ["space_id", "conversation_id", "message_id", "attachment_id"],
+            },
+        ),
+        # ============ Vector Search ============
+        Tool(
+            name="list_vector_search_endpoints",
+            description="List all vector search endpoints",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="get_vector_search_endpoint",
+            description="Get details of a vector search endpoint",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "endpoint_name": {
+                        "type": "string",
+                        "description": "The endpoint name",
+                    }
+                },
+                "required": ["endpoint_name"],
+            },
+        ),
+        Tool(
+            name="list_vector_search_indexes",
+            description="List vector search indexes for an endpoint",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "endpoint_name": {
+                        "type": "string",
+                        "description": "The endpoint name",
+                    }
+                },
+                "required": ["endpoint_name"],
+            },
+        ),
+        Tool(
+            name="get_vector_search_index",
+            description="Get details of a vector search index",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "index_name": {
+                        "type": "string",
+                        "description": "The full index name (catalog.schema.index)",
+                    }
+                },
+                "required": ["index_name"],
+            },
+        ),
+        # ============ Serving Endpoints ============
+        Tool(
+            name="list_serving_endpoints",
+            description="List all model serving endpoints",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="get_serving_endpoint",
+            description="Get details of a serving endpoint",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "endpoint_name": {
+                        "type": "string",
+                        "description": "The endpoint name",
+                    }
+                },
+                "required": ["endpoint_name"],
+            },
+        ),
+        Tool(
+            name="query_serving_endpoint",
+            description="Query a serving endpoint with input data",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "endpoint_name": {
+                        "type": "string",
+                        "description": "The endpoint name",
+                    },
+                    "inputs": {
+                        "type": "string",
+                        "description": "JSON string of input data for the model",
+                    },
+                },
+                "required": ["endpoint_name", "inputs"],
+            },
+        ),
+        # ============ Model Registry ============
+        Tool(
+            name="list_registered_models",
+            description="List all registered models in Unity Catalog",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "catalog_name": {
+                        "type": "string",
+                        "description": "Filter by catalog name",
+                    },
+                    "schema_name": {
+                        "type": "string",
+                        "description": "Filter by schema name",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="get_registered_model",
+            description="Get details of a registered model",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "model_name": {
+                        "type": "string",
+                        "description": "Full model name (catalog.schema.model)",
+                    }
+                },
+                "required": ["model_name"],
+            },
+        ),
+        Tool(
+            name="list_model_versions",
+            description="List all versions of a registered model",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "model_name": {
+                        "type": "string",
+                        "description": "Full model name (catalog.schema.model)",
+                    }
+                },
+                "required": ["model_name"],
+            },
+        ),
+        Tool(
+            name="get_model_version",
+            description="Get details of a specific model version",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "model_name": {
+                        "type": "string",
+                        "description": "Full model name (catalog.schema.model)",
+                    },
+                    "version": {
+                        "type": "integer",
+                        "description": "The model version number",
+                    },
+                },
+                "required": ["model_name", "version"],
+            },
+        ),
     ]
 
 
@@ -1272,6 +1552,248 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             a = get_account_client()
             metastore = a.metastores.get(id=arguments["metastore_id"])
             result = metastore.as_dict()
+
+        # ============ SQL Statement Execution ============
+        elif name == "execute_statement":
+            w = get_workspace_client()
+            from databricks.sdk.service.sql import ExecuteStatementRequestParams
+
+            params = ExecuteStatementRequestParams(
+                statement=arguments["statement"],
+                warehouse_id=arguments["warehouse_id"],
+                catalog=arguments.get("catalog"),
+                schema=arguments.get("schema"),
+                wait_timeout=arguments.get("wait_timeout", "10s"),
+            )
+
+            if "row_limit" in arguments:
+                params.row_limit = arguments["row_limit"]
+
+            response = w.statement_execution.execute_statement(**params.as_dict())
+
+            # Format response
+            result = {
+                "statement_id": response.statement_id,
+                "status": str(response.status.state) if response.status else None,
+            }
+
+            # Include result data if available
+            if response.result:
+                result["result"] = {
+                    "row_count": response.result.row_count,
+                    "data_array": response.result.data_array[:100] if response.result.data_array else None,  # Limit to first 100 rows
+                    "truncated": response.result.truncated,
+                }
+                if response.manifest:
+                    result["manifest"] = {
+                        "schema": response.manifest.schema.as_dict() if response.manifest.schema else None,
+                        "total_row_count": response.manifest.total_row_count,
+                        "total_chunk_count": response.manifest.total_chunk_count,
+                    }
+
+        elif name == "get_statement":
+            w = get_workspace_client()
+            response = w.statement_execution.get_statement(statement_id=arguments["statement_id"])
+
+            result = {
+                "statement_id": response.statement_id,
+                "status": str(response.status.state) if response.status else None,
+            }
+
+            if response.result:
+                result["result"] = {
+                    "row_count": response.result.row_count,
+                    "data_array": response.result.data_array[:100] if response.result.data_array else None,
+                    "truncated": response.result.truncated,
+                }
+                if response.manifest:
+                    result["manifest"] = {
+                        "schema": response.manifest.schema.as_dict() if response.manifest.schema else None,
+                        "total_row_count": response.manifest.total_row_count,
+                    }
+
+        elif name == "cancel_statement_execution":
+            w = get_workspace_client()
+            w.statement_execution.cancel_execution(statement_id=arguments["statement_id"])
+            result = {"status": "cancelled", "statement_id": arguments["statement_id"]}
+
+        # ============ Genie Operations ============
+        elif name == "start_genie_conversation":
+            w = get_workspace_client()
+            conversation = w.genie.start_conversation(space_id=arguments["space_id"])
+            result = {
+                "conversation_id": conversation.conversation_id,
+                "space_id": arguments["space_id"],
+            }
+
+        elif name == "create_genie_message":
+            w = get_workspace_client()
+            from databricks.sdk.service.dashboards import MessageContent
+
+            message = w.genie.create_message(
+                space_id=arguments["space_id"],
+                conversation_id=arguments["conversation_id"],
+                content=MessageContent(query=arguments["content"]),
+            )
+
+            result = {
+                "message_id": message.id,
+                "conversation_id": arguments["conversation_id"],
+                "status": str(message.status),
+            }
+
+            # Include attachments if available
+            if message.attachments:
+                result["attachments"] = [
+                    {
+                        "id": att.id,
+                        "type": str(att.type) if hasattr(att, 'type') else None,
+                    }
+                    for att in message.attachments
+                ]
+
+        elif name == "get_genie_message":
+            w = get_workspace_client()
+            message = w.genie.get_message(
+                space_id=arguments["space_id"],
+                conversation_id=arguments["conversation_id"],
+                message_id=arguments["message_id"],
+            )
+            result = message.as_dict()
+
+        elif name == "get_genie_message_query_result":
+            w = get_workspace_client()
+            query_result = w.genie.get_message_query_result(
+                space_id=arguments["space_id"],
+                conversation_id=arguments["conversation_id"],
+                message_id=arguments["message_id"],
+                attachment_id=arguments["attachment_id"],
+            )
+            result = query_result.as_dict()
+
+        # ============ Vector Search Operations ============
+        elif name == "list_vector_search_endpoints":
+            w = get_workspace_client()
+            endpoints = list(w.vector_search_endpoints.list_endpoints())
+            result = [
+                {
+                    "name": e.name,
+                    "endpoint_type": str(e.endpoint_type) if e.endpoint_type else None,
+                    "endpoint_status": str(e.endpoint_status.state) if e.endpoint_status else None,
+                }
+                for e in endpoints
+            ]
+
+        elif name == "get_vector_search_endpoint":
+            w = get_workspace_client()
+            endpoint = w.vector_search_endpoints.get_endpoint(
+                endpoint_name=arguments["endpoint_name"]
+            )
+            result = endpoint.as_dict()
+
+        elif name == "list_vector_search_indexes":
+            w = get_workspace_client()
+            indexes = list(
+                w.vector_search_indexes.list_indexes(
+                    endpoint_name=arguments["endpoint_name"]
+                )
+            )
+            result = [
+                {
+                    "name": idx.name,
+                    "index_type": str(idx.index_type) if idx.index_type else None,
+                    "delta_sync_index_spec": str(idx.delta_sync_index_spec) if idx.delta_sync_index_spec else None,
+                }
+                for idx in indexes
+            ]
+
+        elif name == "get_vector_search_index":
+            w = get_workspace_client()
+            index = w.vector_search_indexes.get_index(index_name=arguments["index_name"])
+            result = index.as_dict()
+
+        # ============ Serving Endpoints Operations ============
+        elif name == "list_serving_endpoints":
+            w = get_workspace_client()
+            endpoints = list(w.serving_endpoints.list())
+            result = [
+                {
+                    "name": e.name,
+                    "state": str(e.state.ready) if e.state else None,
+                    "config": {
+                        "served_models": [
+                            {
+                                "name": m.name,
+                                "model_name": m.model_name,
+                                "model_version": m.model_version,
+                                "workload_size": str(m.workload_size) if m.workload_size else None,
+                            }
+                            for m in (e.config.served_models or [])
+                        ] if e.config else None,
+                    },
+                }
+                for e in endpoints
+            ]
+
+        elif name == "get_serving_endpoint":
+            w = get_workspace_client()
+            endpoint = w.serving_endpoints.get(name=arguments["endpoint_name"])
+            result = endpoint.as_dict()
+
+        elif name == "query_serving_endpoint":
+            w = get_workspace_client()
+            inputs = json.loads(arguments["inputs"])
+            response = w.serving_endpoints.query(
+                name=arguments["endpoint_name"],
+                inputs=inputs,
+            )
+            result = response.as_dict()
+
+        # ============ Model Registry Operations ============
+        elif name == "list_registered_models":
+            w = get_workspace_client()
+            kwargs = {}
+            if "catalog_name" in arguments:
+                kwargs["catalog_name"] = arguments["catalog_name"]
+            if "schema_name" in arguments:
+                kwargs["schema_name"] = arguments["schema_name"]
+
+            models = list(w.registered_models.list(**kwargs))
+            result = [
+                {
+                    "name": m.name,
+                    "full_name": m.full_name,
+                    "catalog_name": m.catalog_name,
+                    "schema_name": m.schema_name,
+                }
+                for m in models
+            ]
+
+        elif name == "get_registered_model":
+            w = get_workspace_client()
+            model = w.registered_models.get(full_name=arguments["model_name"])
+            result = model.as_dict()
+
+        elif name == "list_model_versions":
+            w = get_workspace_client()
+            versions = list(w.model_versions.list(full_name=arguments["model_name"]))
+            result = [
+                {
+                    "version": v.version,
+                    "model_name": v.model_name,
+                    "status": str(v.status) if v.status else None,
+                    "run_id": v.run_id,
+                }
+                for v in versions
+            ]
+
+        elif name == "get_model_version":
+            w = get_workspace_client()
+            version = w.model_versions.get(
+                full_name=arguments["model_name"],
+                version=arguments["version"],
+            )
+            result = version.as_dict()
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
