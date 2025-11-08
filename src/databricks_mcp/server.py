@@ -9,8 +9,10 @@ including both Workspace and Account level operations.
 import os
 import json
 import logging
+import asyncio
 from typing import Any, Optional
 from contextlib import asynccontextmanager
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from mcp.server import Server
 from mcp.types import Tool, TextContent
@@ -173,6 +175,36 @@ async def list_tools() -> list[Tool]:
                 "required": ["cluster_id"],
             },
         ),
+        Tool(
+            name="get_clusters_batch",
+            description="Get details of multiple clusters in a single operation (batch get)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "cluster_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of cluster IDs to fetch"
+                    }
+                },
+                "required": ["cluster_ids"],
+            },
+        ),
+        Tool(
+            name="delete_clusters_batch",
+            description="Permanently delete multiple clusters in a single operation (batch delete)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "cluster_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of cluster IDs to delete"
+                    }
+                },
+                "required": ["cluster_ids"],
+            },
+        ),
         # ============ Jobs Management ============
         Tool(
             name="list_jobs",
@@ -256,6 +288,36 @@ async def list_tools() -> list[Tool]:
                 "type": "object",
                 "properties": {"job_id": {"type": "integer", "description": "The job ID"}},
                 "required": ["job_id"],
+            },
+        ),
+        Tool(
+            name="get_jobs_batch",
+            description="Get details of multiple jobs in a single operation (batch get)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "job_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "Array of job IDs to fetch"
+                    }
+                },
+                "required": ["job_ids"],
+            },
+        ),
+        Tool(
+            name="delete_jobs_batch",
+            description="Delete multiple jobs in a single operation (batch delete)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "job_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "Array of job IDs to delete"
+                    }
+                },
+                "required": ["job_ids"],
             },
         ),
         # ============ Workspace Management ============
@@ -462,6 +524,21 @@ async def list_tools() -> list[Tool]:
                 "required": ["warehouse_id"],
             },
         ),
+        Tool(
+            name="get_warehouses_batch",
+            description="Get details of multiple SQL warehouses in a single operation (batch get)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "warehouse_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of warehouse IDs to fetch"
+                    }
+                },
+                "required": ["warehouse_ids"],
+            },
+        ),
         # ============ Unity Catalog - Catalogs ============
         Tool(
             name="list_catalogs",
@@ -600,6 +677,21 @@ async def list_tools() -> list[Tool]:
                 "required": ["table_full_name"],
             },
         ),
+        Tool(
+            name="delete_tables_batch",
+            description="Delete multiple tables in a single operation (batch delete)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "table_full_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of full table names (catalog.schema.table) to delete"
+                    }
+                },
+                "required": ["table_full_names"],
+            },
+        ),
         # ============ Secrets Management ============
         Tool(
             name="list_secret_scopes",
@@ -662,6 +754,45 @@ async def list_tools() -> list[Tool]:
                     "key": {"type": "string", "description": "The secret key"},
                 },
                 "required": ["scope", "key"],
+            },
+        ),
+        Tool(
+            name="put_secrets_batch",
+            description="Create or update multiple secrets in a single operation (batch put)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "scope": {"type": "string", "description": "The scope name"},
+                    "secrets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "key": {"type": "string", "description": "The secret key"},
+                                "string_value": {"type": "string", "description": "The secret value"}
+                            },
+                            "required": ["key", "string_value"]
+                        },
+                        "description": "Array of secrets to create/update"
+                    }
+                },
+                "required": ["scope", "secrets"],
+            },
+        ),
+        Tool(
+            name="delete_secrets_batch",
+            description="Delete multiple secrets in a single operation (batch delete)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "scope": {"type": "string", "description": "The scope name"},
+                    "keys": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of secret keys to delete"
+                    }
+                },
+                "required": ["scope", "keys"],
             },
         ),
         # ============ Pipelines (Delta Live Tables) ============
@@ -832,6 +963,41 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["statement_id"],
+            },
+        ),
+        Tool(
+            name="execute_statements_batch",
+            description="Execute multiple SQL statements sequentially in a single operation (batch execution)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "warehouse_id": {
+                        "type": "string",
+                        "description": "The SQL warehouse ID to execute statements on",
+                    },
+                    "statements": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of SQL statements to execute sequentially",
+                    },
+                    "catalog": {
+                        "type": "string",
+                        "description": "The catalog to use (optional)",
+                    },
+                    "schema": {
+                        "type": "string",
+                        "description": "The schema to use (optional)",
+                    },
+                    "wait_timeout": {
+                        "type": "string",
+                        "description": "Time to wait for results per statement (e.g., '30s'). Default is '10s'",
+                    },
+                    "row_limit": {
+                        "type": "integer",
+                        "description": "Maximum number of rows to return per statement",
+                    },
+                },
+                "required": ["warehouse_id", "statements"],
             },
         ),
         # ============ Genie (AI/BI) ============
@@ -1118,6 +1284,52 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             w.clusters.permanent_delete(cluster_id=arguments["cluster_id"])
             result = {"status": "deleted", "cluster_id": arguments["cluster_id"]}
 
+        elif name == "get_clusters_batch":
+            w = get_workspace_client()
+            cluster_ids = arguments["cluster_ids"]
+
+            # Execute get operations concurrently for efficiency
+            def get_cluster(cluster_id):
+                try:
+                    cluster = w.clusters.get(cluster_id=cluster_id)
+                    return {"cluster_id": cluster_id, "data": cluster.as_dict(), "status": "success"}
+                except Exception as e:
+                    return {"cluster_id": cluster_id, "error": str(e), "status": "failed"}
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(get_cluster, cid) for cid in cluster_ids]
+                results = [future.result() for future in as_completed(futures)]
+
+            result = {
+                "total": len(cluster_ids),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
+            }
+
+        elif name == "delete_clusters_batch":
+            w = get_workspace_client()
+            cluster_ids = arguments["cluster_ids"]
+
+            # Execute delete operations concurrently for efficiency
+            def delete_cluster(cluster_id):
+                try:
+                    w.clusters.permanent_delete(cluster_id=cluster_id)
+                    return {"cluster_id": cluster_id, "status": "success"}
+                except Exception as e:
+                    return {"cluster_id": cluster_id, "error": str(e), "status": "failed"}
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(delete_cluster, cid) for cid in cluster_ids]
+                results = [future.result() for future in as_completed(futures)]
+
+            result = {
+                "total": len(cluster_ids),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
+            }
+
         # ============ Jobs Operations ============
         elif name == "list_jobs":
             w = get_workspace_client()
@@ -1181,6 +1393,52 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             w = get_workspace_client()
             w.jobs.delete(job_id=arguments["job_id"])
             result = {"status": "deleted", "job_id": arguments["job_id"]}
+
+        elif name == "get_jobs_batch":
+            w = get_workspace_client()
+            job_ids = arguments["job_ids"]
+
+            # Execute get operations concurrently for efficiency
+            def get_job(job_id):
+                try:
+                    job = w.jobs.get(job_id=job_id)
+                    return {"job_id": job_id, "data": job.as_dict(), "status": "success"}
+                except Exception as e:
+                    return {"job_id": job_id, "error": str(e), "status": "failed"}
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(get_job, jid) for jid in job_ids]
+                results = [future.result() for future in as_completed(futures)]
+
+            result = {
+                "total": len(job_ids),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
+            }
+
+        elif name == "delete_jobs_batch":
+            w = get_workspace_client()
+            job_ids = arguments["job_ids"]
+
+            # Execute delete operations concurrently for efficiency
+            def delete_job(job_id):
+                try:
+                    w.jobs.delete(job_id=job_id)
+                    return {"job_id": job_id, "status": "success"}
+                except Exception as e:
+                    return {"job_id": job_id, "error": str(e), "status": "failed"}
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(delete_job, jid) for jid in job_ids]
+                results = [future.result() for future in as_completed(futures)]
+
+            result = {
+                "total": len(job_ids),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
+            }
 
         # ============ Workspace Operations ============
         elif name == "list_workspace_objects":
@@ -1324,6 +1582,29 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             w.warehouses.stop(id=arguments["warehouse_id"])
             result = {"status": "stopping", "warehouse_id": arguments["warehouse_id"]}
 
+        elif name == "get_warehouses_batch":
+            w = get_workspace_client()
+            warehouse_ids = arguments["warehouse_ids"]
+
+            # Execute get operations concurrently for efficiency
+            def get_warehouse(warehouse_id):
+                try:
+                    warehouse = w.warehouses.get(id=warehouse_id)
+                    return {"warehouse_id": warehouse_id, "data": warehouse.as_dict(), "status": "success"}
+                except Exception as e:
+                    return {"warehouse_id": warehouse_id, "error": str(e), "status": "failed"}
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(get_warehouse, wid) for wid in warehouse_ids]
+                results = [future.result() for future in as_completed(futures)]
+
+            result = {
+                "total": len(warehouse_ids),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
+            }
+
         # ============ Unity Catalog - Catalogs ============
         elif name == "list_catalogs":
             w = get_workspace_client()
@@ -1405,6 +1686,29 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             w.tables.delete(full_name=arguments["table_full_name"])
             result = {"status": "deleted", "table_full_name": arguments["table_full_name"]}
 
+        elif name == "delete_tables_batch":
+            w = get_workspace_client()
+            table_full_names = arguments["table_full_names"]
+
+            # Execute delete operations concurrently for efficiency
+            def delete_table(table_full_name):
+                try:
+                    w.tables.delete(full_name=table_full_name)
+                    return {"table_full_name": table_full_name, "status": "success"}
+                except Exception as e:
+                    return {"table_full_name": table_full_name, "error": str(e), "status": "failed"}
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(delete_table, tname) for tname in table_full_names]
+                results = [future.result() for future in as_completed(futures)]
+
+            result = {
+                "total": len(table_full_names),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
+            }
+
         # ============ Secrets Operations ============
         elif name == "list_secret_scopes":
             w = get_workspace_client()
@@ -1446,6 +1750,60 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
                 "status": "deleted",
                 "scope": arguments["scope"],
                 "key": arguments["key"],
+            }
+
+        elif name == "put_secrets_batch":
+            w = get_workspace_client()
+            scope = arguments["scope"]
+            secrets = arguments["secrets"]
+
+            # Execute put operations concurrently for efficiency
+            def put_secret(secret_item):
+                try:
+                    w.secrets.put_secret(
+                        scope=scope,
+                        key=secret_item["key"],
+                        string_value=secret_item["string_value"]
+                    )
+                    return {"key": secret_item["key"], "status": "success"}
+                except Exception as e:
+                    return {"key": secret_item["key"], "error": str(e), "status": "failed"}
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(put_secret, secret) for secret in secrets]
+                results = [future.result() for future in as_completed(futures)]
+
+            result = {
+                "scope": scope,
+                "total": len(secrets),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
+            }
+
+        elif name == "delete_secrets_batch":
+            w = get_workspace_client()
+            scope = arguments["scope"]
+            keys = arguments["keys"]
+
+            # Execute delete operations concurrently for efficiency
+            def delete_secret(key):
+                try:
+                    w.secrets.delete_secret(scope=scope, key=key)
+                    return {"key": key, "status": "success"}
+                except Exception as e:
+                    return {"key": key, "error": str(e), "status": "failed"}
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(delete_secret, key) for key in keys]
+                results = [future.result() for future in as_completed(futures)]
+
+            result = {
+                "scope": scope,
+                "total": len(keys),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
             }
 
         # ============ Pipelines Operations ============
@@ -1616,6 +1974,74 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             w = get_workspace_client()
             w.statement_execution.cancel_execution(statement_id=arguments["statement_id"])
             result = {"status": "cancelled", "statement_id": arguments["statement_id"]}
+
+        elif name == "execute_statements_batch":
+            w = get_workspace_client()
+            from databricks.sdk.service.sql import ExecuteStatementRequestParams
+
+            warehouse_id = arguments["warehouse_id"]
+            statements = arguments["statements"]
+            catalog = arguments.get("catalog")
+            schema = arguments.get("schema")
+            wait_timeout = arguments.get("wait_timeout", "10s")
+            row_limit = arguments.get("row_limit")
+
+            # Execute statements sequentially (they may have dependencies)
+            results = []
+            for idx, statement in enumerate(statements):
+                try:
+                    params = ExecuteStatementRequestParams(
+                        statement=statement,
+                        warehouse_id=warehouse_id,
+                        catalog=catalog,
+                        schema=schema,
+                        wait_timeout=wait_timeout,
+                    )
+
+                    if row_limit:
+                        params.row_limit = row_limit
+
+                    response = w.statement_execution.execute_statement(**params.as_dict())
+
+                    # Format response
+                    statement_result = {
+                        "statement_index": idx,
+                        "statement": statement,
+                        "statement_id": response.statement_id,
+                        "status": str(response.status.state) if response.status else None,
+                    }
+
+                    # Include result data if available
+                    if response.result:
+                        statement_result["result"] = {
+                            "row_count": response.result.row_count,
+                            "data_array": response.result.data_array[:100] if response.result.data_array else None,
+                            "truncated": response.result.truncated,
+                        }
+                        if response.manifest:
+                            statement_result["manifest"] = {
+                                "schema": response.manifest.schema.as_dict() if response.manifest.schema else None,
+                                "total_row_count": response.manifest.total_row_count,
+                            }
+
+                    results.append({"status": "success", **statement_result})
+
+                except Exception as e:
+                    results.append({
+                        "statement_index": idx,
+                        "statement": statement,
+                        "status": "failed",
+                        "error": str(e)
+                    })
+                    # Continue executing remaining statements even if one fails
+
+            result = {
+                "warehouse_id": warehouse_id,
+                "total": len(statements),
+                "successful": len([r for r in results if r["status"] == "success"]),
+                "failed": len([r for r in results if r["status"] == "failed"]),
+                "results": results
+            }
 
         # ============ Genie Operations ============
         elif name == "start_genie_conversation":
