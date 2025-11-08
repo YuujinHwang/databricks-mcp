@@ -27,6 +27,27 @@ This MCP server enables AI assistants like Claude to interact with Databricks th
 - **DBFS**: List, get status, and delete files in Databricks File System
 - **Workspace Objects**: List, export, delete notebooks and directories
 
+#### SQL & Analytics
+- **SQL Statement Execution**: Execute SQL queries on SQL warehouses and retrieve results
+  - Execute statements with parameters and wait options
+  - Get query status and results
+  - Cancel running queries
+- **Genie (AI/BI)**: Interact with Databricks Genie for natural language data analysis
+  - Start conversations in Genie spaces
+  - Send messages and questions to Genie
+  - Retrieve query results from Genie responses
+
+#### AI & ML
+- **Model Registry**: Manage registered models in Unity Catalog
+  - List and get registered models
+  - List and get model versions
+- **Serving Endpoints**: Deploy and query ML models
+  - List and get serving endpoints
+  - Query endpoints with input data
+- **Vector Search**: Manage vector search infrastructure
+  - List and get vector search endpoints
+  - List and get vector search indexes
+
 #### Development & Collaboration
 - **Repos**: List, create, update, and delete Git repositories
 - **Secrets**: Manage secret scopes and secrets for secure credential storage
@@ -270,9 +291,38 @@ Once configured with Claude Desktop or another MCP client, you can use natural l
 "Get details for workspace ID 12345"
 ```
 
+### SQL Query Execution
+
+```
+"Execute SELECT * FROM my_catalog.my_schema.my_table LIMIT 10 on warehouse abc-123"
+"Run this SQL query: SELECT COUNT(*) FROM sales WHERE region = 'US'"
+"Get the status of statement xyz-789"
+"Cancel the running query with ID abc-123"
+```
+
+### Genie AI/BI
+
+```
+"Start a new conversation in Genie space 01ef..."
+"Ask Genie: What were our top 10 products by revenue last quarter?"
+"Get the query result from Genie message xyz-123"
+"Send a message to Genie asking about user growth trends"
+```
+
+### ML & AI Operations
+
+```
+"List all serving endpoints"
+"Query the 'my-model-endpoint' with this input data"
+"List all registered models in catalog 'ml_models'"
+"Get version 3 of model 'ml_models.production.churn_prediction'"
+"List all vector search endpoints"
+"Get details of vector search index 'embeddings.default.doc_vectors'"
+```
+
 ## Available Tools
 
-The server exposes 70+ tools covering all major Databricks APIs:
+The server exposes 100+ tools covering all major Databricks APIs:
 
 ### Clusters (6 tools)
 - `list_clusters`, `get_cluster`, `create_cluster`, `start_cluster`, `terminate_cluster`, `delete_cluster`
@@ -306,6 +356,21 @@ The server exposes 70+ tools covering all major Databricks APIs:
 
 ### Pipelines (4 tools)
 - `list_pipelines`, `get_pipeline`, `start_pipeline_update`, `stop_pipeline`
+
+### SQL Statement Execution (3 tools)
+- `execute_statement`, `get_statement`, `cancel_statement_execution`
+
+### Genie AI/BI (4 tools)
+- `start_genie_conversation`, `create_genie_message`, `get_genie_message`, `get_genie_message_query_result`
+
+### Vector Search (4 tools)
+- `list_vector_search_endpoints`, `get_vector_search_endpoint`, `list_vector_search_indexes`, `get_vector_search_index`
+
+### Serving Endpoints (3 tools)
+- `list_serving_endpoints`, `get_serving_endpoint`, `query_serving_endpoint`
+
+### Model Registry (4 tools)
+- `list_registered_models`, `get_registered_model`, `list_model_versions`, `get_model_version`
 
 ### Account Management (9 tools)
 - `list_account_workspaces`, `get_account_workspace`, `list_account_users`, `get_account_user`, `list_account_groups`, `get_account_group`, `list_account_service_principals`, `list_account_metastores`, `get_account_metastore`
@@ -423,8 +488,15 @@ For issues and questions:
 
 ## Roadmap
 
+Completed features:
+- [x] SQL Statement Execution API for running queries
+- [x] Genie (AI/BI) API for natural language data analysis
+- [x] Vector Search API for managing vector search infrastructure
+- [x] Serving Endpoints API for ML model deployment and inference
+- [x] Model Registry API for Unity Catalog models
+
 Future enhancements planned:
-- [ ] Support for more Databricks APIs (MLflow, Feature Store, etc.)
+- [ ] Feature Store API integration
 - [ ] Batch operations for efficiency
 - [ ] Streaming support for large result sets
 - [ ] Custom prompts and resources
