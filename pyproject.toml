@@ -11,6 +11,7 @@ dependencies = [
     "mcp>=1.0.0",
     "databricks-sdk>=0.30.0",
     "databricks-feature-engineering>=0.2.0",
+    "tenacity>=8.2.0",
 ]
 
 [project.optional-dependencies]
