@@ -1,4 +1,5 @@
 {
+  "_comment": "Option 1: OAuth User Authentication (개인 사용자 OAuth - Recommended)",
   "mcpServers": {
     "databricks": {
       "command": "python",
@@ -8,9 +9,15 @@
       ],
       "env": {
         "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
-        "DATABRICKS_TOKEN": "dapi1234567890abcdef",
+        "DATABRICKS_AUTH_TYPE": "oauth-u2m",
         "DATABRICKS_ACCOUNT_ID": "12345678-1234-1234-1234-123456789012"
       }
     }
+  },
+  "_comment_alt_pat": "Option 2: Personal Access Token (PAT)",
+  "_env_pat_example": {
+    "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+    "DATABRICKS_TOKEN": "dapi1234567890abcdef",
+    "DATABRICKS_ACCOUNT_ID": "12345678-1234-1234-1234-123456789012"
   }
 }

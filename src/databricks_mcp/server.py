@@ -33,8 +33,29 @@ def get_workspace_client() -> WorkspaceClient:
     """Get or create workspace client."""
     global _workspace_client
     if _workspace_client is None:
-        # Authentication via environment variables or ~/.databrickscfg
-        _workspace_client = WorkspaceClient()
+        # Check if OAuth U2M (User-to-Machine) should be used
+        auth_type = os.getenv("DATABRICKS_AUTH_TYPE", "").lower()
+
+        if auth_type == "oauth-u2m" or auth_type == "oauth":
+            # OAuth U2M authentication - will open browser for user login
+            from databricks.sdk.core import Config
+
+            config_kwargs = {
+                "host": os.getenv("DATABRICKS_HOST"),
+                "auth_type": "oauth-u2m",
+            }
+
+            # Optional: specify OAuth client ID if using custom OAuth app
+            if os.getenv("DATABRICKS_CLIENT_ID"):
+                config_kwargs["client_id"] = os.getenv("DATABRICKS_CLIENT_ID")
+
+            logger.info("Using OAuth U2M authentication - browser login required")
+            _workspace_client = WorkspaceClient(**config_kwargs)
+        else:
+            # Default: Authentication via environment variables or ~/.databrickscfg
+            # Supports: PAT tokens, OAuth M2M, Azure CLI, etc.
+            _workspace_client = WorkspaceClient()
+
         logger.info(f"Initialized WorkspaceClient for {_workspace_client.config.host}")
     return _workspace_client
 
@@ -48,7 +69,27 @@ def get_account_client() -> AccountClient:
             raise ValueError(
                 "DATABRICKS_ACCOUNT_ID environment variable required for account operations"
             )
-        _account_client = AccountClient(account_id=account_id)
+
+        # Check if OAuth U2M should be used
+        auth_type = os.getenv("DATABRICKS_AUTH_TYPE", "").lower()
+
+        if auth_type == "oauth-u2m" or auth_type == "oauth":
+            # OAuth U2M authentication
+            config_kwargs = {
+                "host": os.getenv("DATABRICKS_ACCOUNT_HOST", "https://accounts.cloud.databricks.com"),
+                "account_id": account_id,
+                "auth_type": "oauth-u2m",
+            }
+
+            if os.getenv("DATABRICKS_CLIENT_ID"):
+                config_kwargs["client_id"] = os.getenv("DATABRICKS_CLIENT_ID")
+
+            logger.info("Using OAuth U2M authentication for account client")
+            _account_client = AccountClient(**config_kwargs)
+        else:
+            # Default authentication
+            _account_client = AccountClient(account_id=account_id)
+
         logger.info(f"Initialized AccountClient for account {account_id}")
     return _account_client
 

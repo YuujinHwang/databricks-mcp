@@ -65,7 +65,33 @@ pip install databricks-mcp-server
 
 This MCP server uses the official Databricks SDK, which supports multiple authentication methods:
 
-### Option 1: Environment Variables (Recommended)
+### Option 1: OAuth User Authentication (개인 사용자 OAuth - Recommended)
+
+**사용자 브라우저를 통한 로그인 방식입니다. 개인 자격증명으로 안전하게 접속할 수 있습니다.**
+
+```bash
+export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+export DATABRICKS_AUTH_TYPE="oauth-u2m"
+```
+
+For account operations:
+```bash
+export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+export DATABRICKS_AUTH_TYPE="oauth-u2m"
+export DATABRICKS_ACCOUNT_ID="your-account-id"
+export DATABRICKS_ACCOUNT_HOST="https://accounts.cloud.databricks.com"
+```
+
+처음 MCP 서버를 실행하면 브라우저가 열리고 Databricks에 로그인하라는 메시지가 표시됩니다. 로그인 후 토큰이 자동으로 저장되어 다음 실행 시에는 다시 로그인할 필요가 없습니다.
+
+**커스텀 OAuth 앱 사용 (선택사항):**
+```bash
+export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+export DATABRICKS_AUTH_TYPE="oauth-u2m"
+export DATABRICKS_CLIENT_ID="your-custom-oauth-app-client-id"
+```
+
+### Option 2: Personal Access Token (PAT)
 
 For workspace operations:
 ```bash
@@ -78,7 +104,7 @@ For account operations (in addition to workspace credentials):
 export DATABRICKS_ACCOUNT_ID="your-account-id"
 ```
 
-### Option 2: Databricks Configuration File
+### Option 3: Databricks Configuration File
 
 Create or edit `~/.databrickscfg`:
 
@@ -93,7 +119,7 @@ account_id = your-account-id
 token = your-account-token
 ```
 
-### Option 3: OAuth (For Production)
+### Option 4: OAuth M2M (Machine-to-Machine, For Service Principals)
 
 ```bash
 export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
@@ -109,6 +135,49 @@ Add to your Claude Desktop configuration file:
 
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+
+#### OAuth User Authentication (Recommended - 개인 OAuth 사용)
+
+```json
+{
+  "mcpServers": {
+    "databricks": {
+      "command": "python",
+      "args": [
+        "-m",
+        "databricks_mcp.server"
+      ],
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+      }
+    }
+  }
+}
+```
+
+Account operations를 포함한 전체 설정:
+```json
+{
+  "mcpServers": {
+    "databricks": {
+      "command": "python",
+      "args": [
+        "-m",
+        "databricks_mcp.server"
+      ],
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_AUTH_TYPE": "oauth-u2m",
+        "DATABRICKS_ACCOUNT_ID": "your-account-id",
+        "DATABRICKS_ACCOUNT_HOST": "https://accounts.cloud.databricks.com"
+      }
+    }
+  }
+}
+```
+
+#### Personal Access Token (PAT)
 
 ```json
 {
@@ -279,13 +348,37 @@ ruff check src/
 
 ## Troubleshooting
 
+### OAuth Authentication Issues
+
+OAuth 브라우저 로그인 관련 문제:
+
+1. **브라우저가 자동으로 열리지 않는 경우:**
+   - 콘솔에 표시되는 URL을 수동으로 복사하여 브라우저에서 열기
+   - 로그인 후 브라우저에서 승인 완료
+
+2. **토큰 저장 위치:**
+   - OAuth 토큰은 `~/.databricks/token-cache.json`에 자동 저장됩니다
+   - 이 파일은 자동 갱신되며 수동 관리가 필요 없습니다
+
+3. **토큰 초기화가 필요한 경우:**
+   ```bash
+   rm ~/.databricks/token-cache.json
+   # MCP 서버를 다시 시작하면 재인증 진행
+   ```
+
+4. **MCP 환경에서 OAuth 사용 시 주의사항:**
+   - Claude Desktop이 처음 MCP 서버를 시작할 때 브라우저 창이 열립니다
+   - 로그인 후 Claude Desktop을 재시작할 필요가 없습니다
+   - 토큰이 만료되면 자동으로 갱신을 시도합니다
+
 ### Authentication Errors
 
 If you see authentication errors:
 1. Verify your credentials are correctly set
-2. Check that your token hasn't expired
+2. Check that your token hasn't expired (PAT의 경우)
 3. Ensure your workspace URL is correct (include `https://`)
 4. For account operations, verify `DATABRICKS_ACCOUNT_ID` is set
+5. OAuth 사용 시: 토큰 캐시를 삭제하고 재인증 시도
 
 ### Permission Errors
 
