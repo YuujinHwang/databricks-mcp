@@ -104,7 +104,12 @@ async def list_tools() -> list[Tool]:
             description="List all clusters in the workspace",
             inputSchema={
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of clusters to return (default: 100, max: 1000)",
+                    },
+                },
             },
         ),
         Tool(
@@ -269,7 +274,11 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "Workspace path (default: /)",
                         "default": "/",
-                    }
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of objects to return (default: 100, max: 1000)",
+                    },
                 },
             },
         ),
@@ -336,7 +345,11 @@ async def list_tools() -> list[Tool]:
                     "path": {
                         "type": "string",
                         "description": "DBFS path (e.g., dbfs:/path/to/dir)",
-                    }
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of files to return (default: 100, max: 1000)",
+                    },
                 },
                 "required": ["path"],
             },
@@ -371,7 +384,15 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="list_repos",
             description="List all repos in the workspace",
-            inputSchema={"type": "object", "properties": {}},
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of repos to return (default: 100, max: 1000)",
+                    },
+                },
+            },
         ),
         Tool(
             name="get_repo",
@@ -427,7 +448,15 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="list_warehouses",
             description="List all SQL warehouses",
-            inputSchema={"type": "object", "properties": {}},
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of warehouses to return (default: 100, max: 1000)",
+                    },
+                },
+            },
         ),
         Tool(
             name="get_warehouse",
@@ -466,7 +495,15 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="list_catalogs",
             description="List all Unity Catalog catalogs",
-            inputSchema={"type": "object", "properties": {}},
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of catalogs to return (default: 100, max: 1000)",
+                    },
+                },
+            },
         ),
         Tool(
             name="get_catalog",
@@ -513,7 +550,11 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "catalog_name": {"type": "string", "description": "The catalog name"}
+                    "catalog_name": {"type": "string", "description": "The catalog name"},
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of schemas to return (default: 100, max: 1000)",
+                    },
                 },
                 "required": ["catalog_name"],
             },
@@ -568,6 +609,10 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "catalog_name": {"type": "string", "description": "The catalog name"},
                     "schema_name": {"type": "string", "description": "The schema name"},
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of tables to return (default: 100, max: 1000)",
+                    },
                 },
                 "required": ["catalog_name", "schema_name"],
             },
@@ -668,7 +713,15 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="list_pipelines",
             description="List all Delta Live Tables pipelines",
-            inputSchema={"type": "object", "properties": {}},
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of pipelines to return (default: 100, max: 1000)",
+                    },
+                },
+            },
         ),
         Tool(
             name="get_pipeline",
@@ -707,7 +760,15 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="list_account_workspaces",
             description="List all workspaces in the account",
-            inputSchema={"type": "object", "properties": {}},
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of workspaces to return (default: 100, max: 1000)",
+                    },
+                },
+            },
         ),
         Tool(
             name="get_account_workspace",
@@ -723,7 +784,15 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="list_account_users",
             description="List all users in the account",
-            inputSchema={"type": "object", "properties": {}},
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Maximum number of users to return (default: 100, max: 1000)",
+                    },
+                },
+            },
         ),
         Tool(
             name="get_account_user",
@@ -1063,18 +1132,31 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ Cluster Operations ============
         if name == "list_clusters":
             w = get_workspace_client()
-            clusters = list(w.clusters.list())
-            result = [
-                {
+            page_size = arguments.get("page_size", 100)
+            # Limit page size to prevent memory issues
+            page_size = min(page_size, 1000)
+
+            clusters = []
+            count = 0
+            for c in w.clusters.list():
+                if count >= page_size:
+                    break
+                clusters.append({
                     "cluster_id": c.cluster_id,
                     "cluster_name": c.cluster_name,
                     "state": str(c.state),
                     "spark_version": c.spark_version,
                     "node_type_id": c.node_type_id,
                     "num_workers": c.num_workers,
-                }
-                for c in clusters
-            ]
+                })
+                count += 1
+
+            result = {
+                "clusters": clusters,
+                "count": len(clusters),
+                "page_size": page_size,
+                "note": f"Returned {len(clusters)} clusters (limited to {page_size}). Use page_size parameter to adjust."
+            }
 
         elif name == "get_cluster":
             w = get_workspace_client()
@@ -1123,21 +1205,26 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             w = get_workspace_client()
             kwargs = {}
             if "limit" in arguments:
+                # Use the SDK's native limit parameter if provided
                 kwargs["limit"] = arguments["limit"]
             if "name" in arguments:
                 kwargs["name"] = arguments["name"]
 
-            jobs = list(w.jobs.list(**kwargs))
-            result = [
-                {
+            # Note: jobs.list() already uses pagination internally via the limit parameter
+            jobs = []
+            for j in w.jobs.list(**kwargs):
+                jobs.append({
                     "job_id": j.job_id,
                     "settings": {
                         "name": j.settings.name if j.settings else None,
                         "tasks": len(j.settings.tasks) if j.settings and j.settings.tasks else 0,
                     },
-                }
-                for j in jobs
-            ]
+                })
+
+            result = {
+                "jobs": jobs,
+                "count": len(jobs),
+            }
 
         elif name == "get_job":
             w = get_workspace_client()
@@ -1186,11 +1273,22 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         elif name == "list_workspace_objects":
             w = get_workspace_client()
             path = arguments.get("path", "/")
-            objects = list(w.workspace.list(path=path))
-            result = [
-                {"path": o.path, "object_type": str(o.object_type), "language": str(o.language)}
-                for o in objects
-            ]
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            objects = []
+            count = 0
+            for o in w.workspace.list(path=path):
+                if count >= page_size:
+                    break
+                objects.append({"path": o.path, "object_type": str(o.object_type), "language": str(o.language)})
+                count += 1
+
+            result = {
+                "objects": objects,
+                "count": len(objects),
+                "page_size": page_size,
+            }
 
         elif name == "get_workspace_object_status":
             w = get_workspace_client()
@@ -1210,7 +1308,21 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             export_format = format_map.get(arguments.get("format", "SOURCE"))
 
             export = w.workspace.export(path=arguments["path"], format=export_format)
-            result = {"content": export.content, "format": arguments.get("format", "SOURCE")}
+
+            # Check size and add warning for large exports
+            content_size = len(export.content) if export.content else 0
+            size_mb = content_size / (1024 * 1024)
+
+            result = {
+                "content": export.content,
+                "format": arguments.get("format", "SOURCE"),
+                "size_bytes": content_size,
+                "size_mb": round(size_mb, 2),
+            }
+
+            if size_mb > 10:
+                result["warning"] = f"Large export: {size_mb:.2f} MB. Consider using alternative methods for very large files."
+                logger.warning(f"Large export from {arguments['path']}: {size_mb:.2f} MB")
 
         elif name == "delete_workspace_object":
             w = get_workspace_client()
@@ -1228,15 +1340,31 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ DBFS Operations ============
         elif name == "list_dbfs":
             w = get_workspace_client()
-            files = list(w.dbfs.list(path=arguments["path"]))
-            result = [
-                {
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            files = []
+            count = 0
+            total_size = 0
+            for f in w.dbfs.list(path=arguments["path"]):
+                if count >= page_size:
+                    break
+                file_size = f.file_size if f.file_size else 0
+                total_size += file_size
+                files.append({
                     "path": f.path,
                     "is_dir": f.is_dir,
-                    "file_size": f.file_size,
-                }
-                for f in files
-            ]
+                    "file_size": file_size,
+                })
+                count += 1
+
+            result = {
+                "files": files,
+                "count": len(files),
+                "total_size_bytes": total_size,
+                "total_size_mb": round(total_size / (1024 * 1024), 2),
+                "page_size": page_size,
+            }
 
         elif name == "get_dbfs_status":
             w = get_workspace_client()
@@ -1254,17 +1382,28 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ Repos Operations ============
         elif name == "list_repos":
             w = get_workspace_client()
-            repos = list(w.repos.list())
-            result = [
-                {
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            repos = []
+            count = 0
+            for r in w.repos.list():
+                if count >= page_size:
+                    break
+                repos.append({
                     "id": r.id,
                     "url": r.url,
                     "provider": r.provider,
                     "path": r.path,
                     "branch": r.branch,
-                }
-                for r in repos
-            ]
+                })
+                count += 1
+
+            result = {
+                "repos": repos,
+                "count": len(repos),
+                "page_size": page_size,
+            }
 
         elif name == "get_repo":
             w = get_workspace_client()
@@ -1298,16 +1437,27 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ SQL Warehouse Operations ============
         elif name == "list_warehouses":
             w = get_workspace_client()
-            warehouses = list(w.warehouses.list())
-            result = [
-                {
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            warehouses = []
+            count = 0
+            for wh in w.warehouses.list():
+                if count >= page_size:
+                    break
+                warehouses.append({
                     "id": wh.id,
                     "name": wh.name,
                     "state": str(wh.state),
                     "cluster_size": wh.cluster_size,
-                }
-                for wh in warehouses
-            ]
+                })
+                count += 1
+
+            result = {
+                "warehouses": warehouses,
+                "count": len(warehouses),
+                "page_size": page_size,
+            }
 
         elif name == "get_warehouse":
             w = get_workspace_client()
@@ -1327,8 +1477,22 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ Unity Catalog - Catalogs ============
         elif name == "list_catalogs":
             w = get_workspace_client()
-            catalogs = list(w.catalogs.list())
-            result = [{"name": c.name, "comment": c.comment, "owner": c.owner} for c in catalogs]
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            catalogs = []
+            count = 0
+            for c in w.catalogs.list():
+                if count >= page_size:
+                    break
+                catalogs.append({"name": c.name, "comment": c.comment, "owner": c.owner})
+                count += 1
+
+            result = {
+                "catalogs": catalogs,
+                "count": len(catalogs),
+                "page_size": page_size,
+            }
 
         elif name == "get_catalog":
             w = get_workspace_client()
@@ -1352,10 +1516,22 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ Unity Catalog - Schemas ============
         elif name == "list_schemas":
             w = get_workspace_client()
-            schemas = list(w.schemas.list(catalog_name=arguments["catalog_name"]))
-            result = [
-                {"name": s.name, "full_name": s.full_name, "comment": s.comment} for s in schemas
-            ]
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            schemas = []
+            count = 0
+            for s in w.schemas.list(catalog_name=arguments["catalog_name"]):
+                if count >= page_size:
+                    break
+                schemas.append({"name": s.name, "full_name": s.full_name, "comment": s.comment})
+                count += 1
+
+            result = {
+                "schemas": schemas,
+                "count": len(schemas),
+                "page_size": page_size,
+            }
 
         elif name == "get_schema":
             w = get_workspace_client()
@@ -1379,21 +1555,30 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ Unity Catalog - Tables ============
         elif name == "list_tables":
             w = get_workspace_client()
-            tables = list(
-                w.tables.list(
-                    catalog_name=arguments["catalog_name"],
-                    schema_name=arguments["schema_name"],
-                )
-            )
-            result = [
-                {
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            tables = []
+            count = 0
+            for t in w.tables.list(
+                catalog_name=arguments["catalog_name"],
+                schema_name=arguments["schema_name"],
+            ):
+                if count >= page_size:
+                    break
+                tables.append({
                     "name": t.name,
                     "full_name": t.full_name,
                     "table_type": str(t.table_type),
                     "data_source_format": str(t.data_source_format),
-                }
-                for t in tables
-            ]
+                })
+                count += 1
+
+            result = {
+                "tables": tables,
+                "count": len(tables),
+                "page_size": page_size,
+            }
 
         elif name == "get_table":
             w = get_workspace_client()
@@ -1451,15 +1636,26 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ Pipelines Operations ============
         elif name == "list_pipelines":
             w = get_workspace_client()
-            pipelines = list(w.pipelines.list_pipelines())
-            result = [
-                {
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            pipelines = []
+            count = 0
+            for p in w.pipelines.list_pipelines():
+                if count >= page_size:
+                    break
+                pipelines.append({
                     "pipeline_id": p.pipeline_id,
                     "name": p.name,
                     "state": str(p.state),
-                }
-                for p in pipelines
-            ]
+                })
+                count += 1
+
+            result = {
+                "pipelines": pipelines,
+                "count": len(pipelines),
+                "page_size": page_size,
+            }
 
         elif name == "get_pipeline":
             w = get_workspace_client()
@@ -1479,16 +1675,27 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # ============ Account Operations ============
         elif name == "list_account_workspaces":
             a = get_account_client()
-            workspaces = list(a.workspaces.list())
-            result = [
-                {
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            workspaces = []
+            count = 0
+            for ws in a.workspaces.list():
+                if count >= page_size:
+                    break
+                workspaces.append({
                     "workspace_id": ws.workspace_id,
                     "workspace_name": ws.workspace_name,
                     "workspace_status": str(ws.workspace_status),
                     "deployment_name": ws.deployment_name,
-                }
-                for ws in workspaces
-            ]
+                })
+                count += 1
+
+            result = {
+                "workspaces": workspaces,
+                "count": len(workspaces),
+                "page_size": page_size,
+            }
 
         elif name == "get_account_workspace":
             a = get_account_client()
@@ -1497,16 +1704,27 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
         elif name == "list_account_users":
             a = get_account_client()
-            users = list(a.users.list())
-            result = [
-                {
+            page_size = arguments.get("page_size", 100)
+            page_size = min(page_size, 1000)
+
+            users = []
+            count = 0
+            for u in a.users.list():
+                if count >= page_size:
+                    break
+                users.append({
                     "id": u.id,
                     "user_name": u.user_name,
                     "display_name": u.display_name,
                     "active": u.active,
-                }
-                for u in users
-            ]
+                })
+                count += 1
+
+            result = {
+                "users": users,
+                "count": len(users),
+                "page_size": page_size,
+            }
 
         elif name == "get_account_user":
             a = get_account_client()
@@ -1579,9 +1797,27 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
             # Include result data if available
             if response.result:
+                data_array = response.result.data_array if response.result.data_array else None
+
+                # Check if we need to fetch additional chunks
+                if response.manifest and response.manifest.total_chunk_count and response.manifest.total_chunk_count > 1:
+                    # Fetch all chunks to get complete results
+                    all_data = list(data_array) if data_array else []
+
+                    for chunk_index in range(1, response.manifest.total_chunk_count):
+                        chunk_response = w.statement_execution.get_statement_result_chunk_n(
+                            statement_id=response.statement_id,
+                            chunk_index=chunk_index
+                        )
+                        if chunk_response.data_array:
+                            all_data.extend(chunk_response.data_array)
+
+                    data_array = all_data
+                    logger.info(f"Fetched {response.manifest.total_chunk_count} chunks with {len(all_data)} total rows")
+
                 result["result"] = {
                     "row_count": response.result.row_count,
-                    "data_array": response.result.data_array[:100] if response.result.data_array else None,  # Limit to first 100 rows
+                    "data_array": data_array,
                     "truncated": response.result.truncated,
                 }
                 if response.manifest:
@@ -1589,6 +1825,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
                         "schema": response.manifest.schema.as_dict() if response.manifest.schema else None,
                         "total_row_count": response.manifest.total_row_count,
                         "total_chunk_count": response.manifest.total_chunk_count,
+                        "chunks_fetched": response.manifest.total_chunk_count if response.manifest.total_chunk_count else 1,
                     }
 
         elif name == "get_statement":
@@ -1601,15 +1838,35 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             }
 
             if response.result:
+                data_array = response.result.data_array if response.result.data_array else None
+
+                # Check if we need to fetch additional chunks
+                if response.manifest and response.manifest.total_chunk_count and response.manifest.total_chunk_count > 1:
+                    # Fetch all chunks to get complete results
+                    all_data = list(data_array) if data_array else []
+
+                    for chunk_index in range(1, response.manifest.total_chunk_count):
+                        chunk_response = w.statement_execution.get_statement_result_chunk_n(
+                            statement_id=response.statement_id,
+                            chunk_index=chunk_index
+                        )
+                        if chunk_response.data_array:
+                            all_data.extend(chunk_response.data_array)
+
+                    data_array = all_data
+                    logger.info(f"Fetched {response.manifest.total_chunk_count} chunks with {len(all_data)} total rows")
+
                 result["result"] = {
                     "row_count": response.result.row_count,
-                    "data_array": response.result.data_array[:100] if response.result.data_array else None,
+                    "data_array": data_array,
                     "truncated": response.result.truncated,
                 }
                 if response.manifest:
                     result["manifest"] = {
                         "schema": response.manifest.schema.as_dict() if response.manifest.schema else None,
                         "total_row_count": response.manifest.total_row_count,
+                        "total_chunk_count": response.manifest.total_chunk_count,
+                        "chunks_fetched": response.manifest.total_chunk_count if response.manifest.total_chunk_count else 1,
                     }
 
         elif name == "cancel_statement_execution":
