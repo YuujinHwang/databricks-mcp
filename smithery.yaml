@@ -1,0 +1,121 @@
+name: databricks-mcp-server
+version: 0.1.0
+description: Comprehensive MCP server for Databricks REST APIs with support for workspace and account-level operations
+author: YuujinHwang
+homepage: https://github.com/YuujinHwang/databricks-mcp
+license: MIT
+
+# Server configuration
+server:
+  # Command to run the server
+  command: uvx
+  args:
+    - --from
+    - git+https://github.com/YuujinHwang/databricks-mcp.git
+    - databricks-mcp-server
+
+  # Required environment variables
+  env:
+    required:
+      - name: DATABRICKS_HOST
+        description: Your Databricks workspace URL (e.g., https://your-workspace.cloud.databricks.com)
+    optional:
+      - name: DATABRICKS_AUTH_TYPE
+        description: Authentication type (e.g., oauth-u2m for OAuth, leave empty for PAT)
+        default: oauth-u2m
+      - name: DATABRICKS_TOKEN
+        description: Personal Access Token (required if not using OAuth)
+      - name: DATABRICKS_ACCOUNT_ID
+        description: Databricks account ID (required for account-level operations)
+      - name: DATABRICKS_ACCOUNT_HOST
+        description: Databricks account host (e.g., https://accounts.cloud.databricks.com)
+      - name: DATABRICKS_CLIENT_ID
+        description: OAuth client ID (optional, for custom OAuth apps)
+      - name: DATABRICKS_CLIENT_SECRET
+        description: OAuth client secret (for M2M authentication)
+
+# Supported platforms
+platforms:
+  - macos
+  - linux
+  - windows
+
+# Categories
+categories:
+  - data
+  - cloud
+  - analytics
+  - ml
+
+# Tags for searchability
+tags:
+  - databricks
+  - data-engineering
+  - machine-learning
+  - unity-catalog
+  - spark
+  - sql
+  - mlops
+  - feature-store
+  - vector-search
+
+# Documentation
+documentation:
+  readme: README.md
+
+# Installation methods
+install:
+  github: https://github.com/YuujinHwang/databricks-mcp.git
+
+# Example configurations
+examples:
+  - name: Basic OAuth Setup
+    description: Simple setup with OAuth user authentication
+    config:
+      command: uvx
+      args:
+        - --from
+        - git+https://github.com/YuujinHwang/databricks-mcp.git
+        - databricks-mcp-server
+      env:
+        DATABRICKS_HOST: https://your-workspace.cloud.databricks.com
+        DATABRICKS_AUTH_TYPE: oauth-u2m
+
+  - name: With Account Access
+    description: Setup including account-level operations
+    config:
+      command: uvx
+      args:
+        - --from
+        - git+https://github.com/YuujinHwang/databricks-mcp.git
+        - databricks-mcp-server
+      env:
+        DATABRICKS_HOST: https://your-workspace.cloud.databricks.com
+        DATABRICKS_AUTH_TYPE: oauth-u2m
+        DATABRICKS_ACCOUNT_ID: your-account-id
+        DATABRICKS_ACCOUNT_HOST: https://accounts.cloud.databricks.com
+
+  - name: Personal Access Token
+    description: Setup using PAT instead of OAuth
+    config:
+      command: uvx
+      args:
+        - --from
+        - git+https://github.com/YuujinHwang/databricks-mcp.git
+        - databricks-mcp-server
+      env:
+        DATABRICKS_HOST: https://your-workspace.cloud.databricks.com
+        DATABRICKS_TOKEN: your-access-token
+
+# Features showcase
+features:
+  - Cluster and SQL Warehouse management
+  - Jobs and workflows orchestration
+  - Unity Catalog operations (catalogs, schemas, tables)
+  - SQL query execution and Genie AI/BI integration
+  - ML model registry and serving endpoints
+  - Vector search and feature store
+  - Workspace and DBFS file management
+  - Git repository integration
+  - Account-level administration
+  - 80+ tools covering all major Databricks APIs
