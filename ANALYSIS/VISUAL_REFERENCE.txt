@@ -1,0 +1,411 @@
+================================================================================
+DATABRICKS MCP SERVER - VISUAL REFERENCE GUIDE
+================================================================================
+
+CODEBASE AT A GLANCE
+====================
+
+Single File Architecture:
+┌─────────────────────────────────────────────────────────────┐
+│  /home/user/databricks-mcp/src/databricks_mcp/server.py    │
+│  (1,826 lines total)                                         │
+├─────────────────────────────────────────────────────────────┤
+│  Lines 1-30:       Imports & Logging Setup                 │
+│  Lines 32-94:      Client Initialization Functions         │
+│  Lines 97-1054:    Tool Definitions (100+ tools)          │
+│  Lines 1057-1807:  Tool Implementation (call_tool)        │
+│  Lines 1809-1826:  Main Function & Entry Point            │
+└─────────────────────────────────────────────────────────────┘
+
+RESULT SET HANDLING - THE PROBLEM
+==================================
+
+                    IDEAL vs ACTUAL
+
+IDEAL (Large Dataset):
+  ┌──────────────────────┐
+  │ SELECT * (1M rows)   │
+  ├──────────────────────┤
+  │ ✓ Stream first 1000  │
+  │ ✓ Stream next 1000   │
+  │ ✓ Stream next 1000   │
+  │ ... (pagination)     │
+  │ ✓ All data accessible│
+  └──────────────────────┘
+
+ACTUAL (Current Implementation):
+  ┌──────────────────────┐
+  │ SELECT * (1M rows)   │
+  ├──────────────────────┤
+  │ ✓ Receive ALL 1M     │
+  │   rows in memory     │
+  │ ✓ Take first 100     │
+  │ ✗ DISCARD 999,900    │
+  │ ✗ Data lost!         │
+  └──────────────────────┘
+
+
+MEMORY IMPACT - LIST OPERATIONS
+================================
+
+Scenario: list_clusters in workspace with 50,000 clusters
+
+CURRENT FLOW:
+  User Request
+       ↓
+  w.clusters.list()  ← Returns Iterator (lazy)
+       ↓
+  list(iterator)     ← MATERIALIZES ALL 50,000
+       ↓ 
+  Memory Load: ~50MB (in Python objects)
+       ↓
+  json.dumps()       ← Convert to JSON string
+       ↓
+  Memory Load: ~150MB total
+       ↓
+  Send to Client     ← Timeout likely!
+
+
+TOOL CATEGORIES & AFFECTED TOOLS
+==================================
+
+Compute (6 tools):
+  ├─ list_clusters      [HAS ISSUE]
+  ├─ get_cluster
+  ├─ create_cluster
+  ├─ start_cluster
+  ├─ terminate_cluster
+  └─ delete_cluster
+
+Jobs (7 tools):
+  ├─ list_jobs          [HAS ISSUE - only one with limit param!]
+  ├─ get_job
+  ├─ create_job
+  ├─ run_job
+  ├─ get_run
+  ├─ cancel_run
+  └─ delete_job
+
+SQL (3 tools):
+  ├─ execute_statement  [CRITICAL ISSUE - 100 row limit]
+  ├─ get_statement      [CRITICAL ISSUE - 100 row limit]
+  └─ cancel_statement_execution
+
+Workspace (5 tools):
+  ├─ list_workspace_objects  [HAS ISSUE]
+  ├─ get_workspace_object_status
+  ├─ export_workspace_object [MEDIUM ISSUE - no size limit]
+  ├─ delete_workspace_object
+  └─ mkdirs
+
+... (16 total categories, 100+ tools)
+
+
+CRITICAL CODE SECTIONS - WHAT TO CHANGE
+=========================================
+
+ISSUE #1: SQL RESULT LIMITING (Lines 1584, 1606)
+────────────────────────────────────────────────
+
+Current Code:
+  if response.result:
+      result["result"] = {
+          "row_count": response.result.row_count,
+          "data_array": response.result.data_array[:100],  ← PROBLEM
+          "truncated": response.result.truncated,
+      }
+      if response.manifest:
+          result["manifest"] = {
+              "total_row_count": response.manifest.total_row_count,  ← SHOWS TOTAL
+              "total_chunk_count": response.manifest.total_chunk_count,  ← UNUSED
+          }
+
+What's Happening:
+  1. API returns ALL rows (could be 1M+)
+  2. [:100] slices to first 100 only
+  3. Manifest shows total_chunk_count but never used
+  4. Data loss!
+
+What Should Happen:
+  1. Respect the actual result size
+  2. Implement chunk fetching using total_chunk_count
+  3. Add pagination tool to fetch subsequent chunks
+  4. OR: Use row_limit parameter more intelligently
+
+
+ISSUE #2: LIST MATERIALIZATION (25 locations)
+──────────────────────────────────────────────
+
+Current Code Pattern (all 25 list operations):
+  clusters = list(w.clusters.list())  ← FORCES MATERIALIZATION
+  result = [
+      {
+          "cluster_id": c.cluster_id,
+          "cluster_name": c.cluster_name,
+          ...
+      }
+      for c in clusters
+  ]
+
+What's Happening:
+  ┌─────────────────────────────────────┐
+  │ w.clusters.list()                   │
+  │ Returns: Iterator (lazy, streaming) │
+  └────────────┬────────────────────────┘
+               │
+               ↓
+  ┌─────────────────────────────────────┐
+  │ list(iterator)                      │
+  │ Materializes: Forces full load      │
+  │ Memory: ALL items in memory         │
+  └────────────┬────────────────────────┘
+               │
+               ↓
+  ┌─────────────────────────────────────┐
+  │ List comprehension                  │
+  │ Filters: Extract fields             │
+  │ Memory: Still all items             │
+  └────────────┬────────────────────────┘
+               │
+               ↓
+  ┌─────────────────────────────────────┐
+  │ json.dumps(result)                  │
+  │ Serializes: Converts to JSON        │
+  │ Memory: JSON string (biggest!)      │
+  └─────────────────────────────────────┘
+
+What Should Happen:
+  ┌─────────────────────────────────────┐
+  │ w.clusters.list()                   │
+  │ Returns: Iterator (lazy, streaming) │
+  └────────────┬────────────────────────┘
+               │
+               ↓
+  ┌─────────────────────────────────────┐
+  │ Preserve Iterator                   │
+  │ Process: One at a time              │
+  │ Memory: Only current item           │
+  └────────────┬────────────────────────┘
+               │
+               ↓
+  ┌─────────────────────────────────────┐
+  │ Generator/Streaming                 │
+  │ Stream: Send chunks as ready        │
+  │ Memory: Minimal (1 item at a time)  │
+  └─────────────────────────────────────┘
+
+
+ISSUE #3: JSON SERIALIZATION (Line 1802)
+─────────────────────────────────────────
+
+Current Code:
+  return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
+
+Problem Flow:
+  Step 1: All data loaded     → 100MB memory
+  Step 2: Dict created        → 150MB memory
+  Step 3: JSON serialized     → 200MB+ string
+  Step 4: Send all at once    → Timeout/crash
+
+Better Flow:
+  Step 1: Load first chunk    → 1MB memory
+  Step 2: Create dict         → 2MB memory
+  Step 3: JSON serialize      → 3MB string
+  Step 4: Send chunk          → Success!
+  Step 5: Load next chunk     → Repeat...
+
+
+SQL RESULT ARCHITECTURE
+=======================
+
+Current vs Needed:
+
+┌─ CURRENT ─────────────────┐
+│ execute_statement         │
+│   ├─ statement_id        │
+│   ├─ status              │
+│   └─ result:             │
+│       ├─ row_count       │
+│       ├─ data_array[:100]│ ← SLICED!
+│       └─ truncated       │
+│                          │
+│ get_statement            │
+│   └─ (same, with chunk)  │
+└────────────────────────────┘
+
+┌─ NEEDED ──────────────────────┐
+│ execute_statement             │
+│   ├─ statement_id            │
+│   ├─ status                  │
+│   └─ result: FULL or chunked │
+│       ├─ row_count           │
+│       ├─ data_array[]        │
+│       ├─ truncated           │
+│       └─ chunk_index         │
+│                              │
+│ get_statement_chunk (NEW)    │
+│   ├─ statement_id           │
+│   ├─ chunk_index            │
+│   └─ result: chunk data     │
+│                              │
+│ get_statement_chunks (NEW)   │
+│   ├─ statement_id           │
+│   └─ chunks: metadata       │
+│       ├─ total_chunks       │
+│       ├─ total_rows         │
+│       └─ chunk_size         │
+└───────────────────────────────┘
+
+
+AFFECTED TOOLS BY CATEGORY
+===========================
+
+            TOOL TYPE           COUNT  STATUS
+────────────────────────────────────────────────
+Get Operations                   15   OK
+Create/Update/Delete             40   OK
+Simple List (No Filter)          10   BROKEN
+Filtered List (With Params)       5   BROKEN
+SQL Query Operations              3   BROKEN
+File Operations                   1   MEDIUM
+Genie Operations                  1   MEDIUM
+────────────────────────────────────────────────
+                        Total    75+
+                   Affected     29 (39%)
+
+
+SCALE TESTING SCENARIOS
+=======================
+
+Test Case 1: Large Cluster List
+  Scenario: 50,000 clusters
+  Current: ✗ FAIL (memory exhaustion)
+  Expected: Should stream first 100, paginate to next
+
+Test Case 2: SQL SELECT *
+  Scenario: 10M row table
+  Current: ✗ FAIL (returns 100 rows, data loss)
+  Expected: Should return all chunks or paginate
+
+Test Case 3: Large Notebook Export
+  Scenario: 50MB notebook
+  Current: ✗ FAIL (crashes on serialization)
+  Expected: Should stream in chunks
+
+Test Case 4: Account Users List
+  Scenario: 10,000 users
+  Current: ✗ FAIL (OOM on JSON serialization)
+  Expected: Should paginate with cursor
+
+
+IMPLEMENTATION ROADMAP
+======================
+
+PHASE 1: SQL Query Results (CRITICAL)
+─────────────────────────────────────
+Priority: IMMEDIATE
+Impact: High (2 tools)
+Effort: Medium
+Files: Lines 1584, 1606
+
+Steps:
+  1. Remove [:100] hard-coded limit
+  2. Implement get_statement_chunk tool
+  3. Use manifest.total_chunk_count
+  4. Add pagination support
+
+Before:
+  SELECT * FROM table (1M rows)
+    → Returns: 100 rows (data loss)
+
+After:
+  SELECT * FROM table (1M rows)
+    → Returns: First chunk
+    → Use get_statement_chunk to fetch more
+    → Full data access
+
+PHASE 2: List Operations (HIGH)
+───────────────────────────────
+Priority: HIGH
+Impact: High (25 tools)
+Effort: High
+Files: 25 locations
+
+Steps:
+  1. Add limit/offset to all list tools
+  2. Preserve SDK iterators
+  3. Implement cursor-based pagination
+  4. Stream results
+
+Before:
+  list_clusters()
+    → Loads ALL clusters
+    → JSON serialize all
+    → Send (or timeout)
+
+After:
+  list_clusters(limit=100, offset=0)
+    → Load 100 items
+    → Stream to client
+    → Client requests next page
+
+PHASE 3: File Handling (MEDIUM)
+───────────────────────────────
+Priority: MEDIUM
+Impact: Low (1 tool)
+Effort: Medium
+Files: Lines 1200-1213
+
+Steps:
+  1. Check file size before export
+  2. Add chunk-based export for large files
+  3. Implement streaming export
+
+PHASE 4: Genie Results (MEDIUM)
+───────────────────────────────
+Priority: MEDIUM
+Impact: Low (1 tool)
+Effort: Low
+Files: Lines 1664-1672
+
+Steps:
+  1. Add size checking to results
+  2. Truncate if too large
+  3. Add pagination if needed
+
+
+QUICK REFERENCE TABLE
+=====================
+
+LOCATION  ISSUE              SEVERITY  AFFECTED TOOLS
+────────────────────────────────────────────────────────
+1584      100-row limit      CRITICAL  execute_statement
+1606      100-row limit      CRITICAL  get_statement
+1587-92   Unused chunks      CRITICAL  execute_statement, get_statement
+1066      Materialized       HIGH      list_clusters
+1130      Materialized       HIGH      list_jobs
+1189      Materialized       HIGH      list_workspace_objects
+1231      Materialized       HIGH      list_dbfs
+1257      Materialized       HIGH      list_repos
+1301      Materialized       HIGH      list_warehouses
+1330      Materialized       HIGH      list_catalogs
+1355      Materialized       HIGH      list_schemas
+1383      Materialized       HIGH      list_tables
+1411      Materialized       HIGH      list_secret_scopes
+1426      Materialized       HIGH      list_secrets
+1454      Materialized       HIGH      list_pipelines
+1482      Materialized       HIGH      list_account_workspaces
+1500      Materialized       HIGH      list_account_users
+1518      Materialized       HIGH      list_account_groups
+1528      Materialized       HIGH      list_account_service_principals
+1541      Materialized       HIGH      list_account_metastores
+1677      Materialized       HIGH      list_vector_search_endpoints
+1697      Materialized       HIGH      list_vector_search_indexes
+1718      Materialized       HIGH      list_serving_endpoints
+1761      Materialized       HIGH      list_registered_models
+1779      Materialized       HIGH      list_model_versions
+1802      Mono-serialized    HIGH      ALL TOOLS
+1200-13   No size check      MEDIUM    export_workspace_object
+1672      No limit check     MEDIUM    get_genie_message_query_result
+
+================================================================================
