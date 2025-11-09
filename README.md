@@ -47,6 +47,13 @@ This MCP server enables AI assistants like Claude to interact with Databricks th
 - **Vector Search**: Manage vector search infrastructure
   - List and get vector search endpoints
   - List and get vector search indexes
+- **Feature Store**: Manage feature tables for ML feature engineering
+  - Create and manage feature tables in Unity Catalog
+  - List feature tables in a schema
+  - Get feature table metadata
+  - Delete feature tables
+  - Create online stores for real-time feature serving
+  - Publish feature tables to online stores
 
 #### Development & Collaboration
 - **Repos**: List, create, update, and delete Git repositories
@@ -322,7 +329,7 @@ Once configured with Claude Desktop or another MCP client, you can use natural l
 
 ## Available Tools
 
-The server exposes 100+ tools covering all major Databricks APIs:
+The server exposes 80+ tools covering all major Databricks APIs:
 
 ### Clusters (6 tools)
 - `list_clusters`, `get_cluster`, `create_cluster`, `start_cluster`, `terminate_cluster`, `delete_cluster`
@@ -371,6 +378,14 @@ The server exposes 100+ tools covering all major Databricks APIs:
 
 ### Model Registry (4 tools)
 - `list_registered_models`, `get_registered_model`, `list_model_versions`, `get_model_version`
+
+### Feature Store (6 tools)
+- `create_feature_table` - Create a feature table in Unity Catalog
+- `get_feature_table` - Get metadata about a feature table
+- `list_feature_tables` - List feature tables in a Unity Catalog schema
+- `delete_feature_table` - Delete a feature table
+- `create_online_store` - Create an online feature store for real-time serving
+- `publish_feature_table` - Publish a feature table to an online store
 
 ### Account Management (9 tools)
 - `list_account_workspaces`, `get_account_workspace`, `list_account_users`, `get_account_user`, `list_account_groups`, `get_account_group`, `list_account_service_principals`, `list_account_metastores`, `get_account_metastore`
@@ -496,7 +511,7 @@ Completed features:
 - [x] Model Registry API for Unity Catalog models
 
 Future enhancements planned:
-- [ ] Feature Store API integration
+- [x] Feature Store API integration
 - [ ] Batch operations for efficiency
 - [ ] Streaming support for large result sets
 - [ ] Custom prompts and resources
