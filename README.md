@@ -69,24 +69,30 @@ This MCP server enables AI assistants like Claude to interact with Databricks th
 
 ## Installation
 
+### Quick Start (Recommended - No Manual pip install Required!)
+
+The easiest way to use this MCP server with Claude Desktop is using `uvx`, which installs directly from GitHub:
+
+Just add the configuration below to your Claude Desktop config file and you're done! See [Claude Desktop Configuration](#claude-desktop-configuration) for details.
+
 ### Prerequisites
 
 - Python 3.10 or higher
 - Databricks workspace access with appropriate permissions
 - Databricks authentication credentials (see Authentication section)
 
-### Install from Source
+### Install from GitHub
 
 ```bash
-git clone https://github.com/yourusername/databricks-mcp.git
-cd databricks-mcp
-pip install -e .
+pip install git+https://github.com/YuujinHwang/databricks-mcp.git
 ```
 
-### Install from PyPI (once published)
+### Install from Source (for development)
 
 ```bash
-pip install databricks-mcp-server
+git clone https://github.com/YuujinHwang/databricks-mcp.git
+cd databricks-mcp
+pip install -e .
 ```
 
 ## Authentication
@@ -164,7 +170,78 @@ Add to your Claude Desktop configuration file:
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 
-#### OAuth User Authentication (Recommended - 개인 OAuth 사용)
+#### Option 1: Using uvx (Easiest - No manual pip install required!)
+
+This method automatically installs from GitHub without requiring you to run pip install first.
+
+OAuth User Authentication (Recommended):
+
+```json
+{
+  "mcpServers": {
+    "databricks": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/YuujinHwang/databricks-mcp.git",
+        "databricks-mcp-server"
+      ],
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+      }
+    }
+  }
+}
+```
+
+With Account operations:
+
+```json
+{
+  "mcpServers": {
+    "databricks": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/YuujinHwang/databricks-mcp.git",
+        "databricks-mcp-server"
+      ],
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_AUTH_TYPE": "oauth-u2m",
+        "DATABRICKS_ACCOUNT_ID": "your-account-id",
+        "DATABRICKS_ACCOUNT_HOST": "https://accounts.cloud.databricks.com"
+      }
+    }
+  }
+}
+```
+
+Using Personal Access Token:
+
+```json
+{
+  "mcpServers": {
+    "databricks": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/YuujinHwang/databricks-mcp.git",
+        "databricks-mcp-server"
+      ],
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_TOKEN": "your-access-token"
+      }
+    }
+  }
+}
+```
+
+#### Option 2: Using pip-installed package
+
+OAuth User Authentication (Recommended - 개인 OAuth 사용)
 
 ```json
 {
@@ -184,7 +261,8 @@ Add to your Claude Desktop configuration file:
 }
 ```
 
-Account operations를 포함한 전체 설정:
+With Account operations:
+
 ```json
 {
   "mcpServers": {
@@ -205,7 +283,7 @@ Account operations를 포함한 전체 설정:
 }
 ```
 
-#### Personal Access Token (PAT)
+Using Personal Access Token:
 
 ```json
 {
