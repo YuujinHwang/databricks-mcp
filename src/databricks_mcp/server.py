@@ -10,6 +10,7 @@ import os
 import json
 import logging
 import asyncio
+import time
 from typing import Any, Optional
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,12 +18,285 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from mcp.server import Server
 from mcp.types import Tool, TextContent
 from databricks.sdk import WorkspaceClient, AccountClient
-from databricks.sdk.core import Config
+from databricks.sdk.core import Config, DatabricksError
 from databricks.feature_engineering import FeatureEngineeringClient
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+    RetryError,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# ============ Custom Error Classes ============
+class DatabricksAPIError(Exception):
+    """Base exception for Databricks API errors."""
+    def __init__(self, message: str, error_code: Optional[str] = None, retryable: bool = False):
+        self.message = message
+        self.error_code = error_code
+        self.retryable = retryable
+        super().__init__(self.message)
+
+
+class RetryableAPIError(DatabricksAPIError):
+    """Exception for retryable API errors (network issues, rate limits, transient errors)."""
+    def __init__(self, message: str, error_code: Optional[str] = None):
+        super().__init__(message, error_code, retryable=True)
+
+
+class NonRetryableAPIError(DatabricksAPIError):
+    """Exception for non-retryable API errors (auth, permission, bad request)."""
+    def __init__(self, message: str, error_code: Optional[str] = None):
+        super().__init__(message, error_code, retryable=False)
+
+
+class AuthenticationError(NonRetryableAPIError):
+    """Exception for authentication failures."""
+    pass
+
+
+class PermissionError(NonRetryableAPIError):
+    """Exception for permission/authorization failures."""
+    pass
+
+
+class ResourceNotFoundError(NonRetryableAPIError):
+    """Exception for resource not found errors."""
+    pass
+
+
+class RateLimitError(RetryableAPIError):
+    """Exception for rate limit errors."""
+    pass
+
+
+# ============ Error Categorization ============
+def categorize_error(error: Exception) -> DatabricksAPIError:
+    """
+    Categorize errors into retryable vs non-retryable types.
+
+    Args:
+        error: The original exception
+
+    Returns:
+        A categorized DatabricksAPIError subclass
+    """
+    error_message = str(error)
+    error_lower = error_message.lower()
+
+    # Network and connection errors (retryable)
+    if any(keyword in error_lower for keyword in [
+        'connection', 'timeout', 'timed out', 'network', 'temporary failure',
+        'connection refused', 'connection reset', 'broken pipe'
+    ]):
+        return RetryableAPIError(f"Network error: {error_message}")
+
+    # Rate limiting (retryable with backoff)
+    if any(keyword in error_lower for keyword in ['rate limit', '429', 'too many requests']):
+        return RateLimitError(f"Rate limit exceeded: {error_message}")
+
+    # Transient server errors (retryable)
+    if any(keyword in error_lower for keyword in [
+        '500', '502', '503', '504',
+        'internal server error', 'bad gateway', 'service unavailable', 'gateway timeout'
+    ]):
+        return RetryableAPIError(f"Transient server error: {error_message}")
+
+    # Resource not ready (retryable for long-running operations)
+    if any(keyword in error_lower for keyword in [
+        'not ready', 'still starting', 'pending', 'initializing'
+    ]):
+        return RetryableAPIError(f"Resource not ready: {error_message}")
+
+    # Authentication errors (non-retryable)
+    if any(keyword in error_lower for keyword in [
+        'auth', 'unauthorized', '401', 'invalid token', 'token expired',
+        'authentication failed', 'invalid credentials'
+    ]):
+        return AuthenticationError(f"Authentication failed: {error_message}")
+
+    # Permission errors (non-retryable)
+    if any(keyword in error_lower for keyword in [
+        'permission', 'forbidden', '403', 'access denied', 'not authorized'
+    ]):
+        return PermissionError(f"Permission denied: {error_message}")
+
+    # Resource not found (non-retryable)
+    if any(keyword in error_lower for keyword in ['404', 'not found', 'does not exist']):
+        return ResourceNotFoundError(f"Resource not found: {error_message}")
+
+    # Bad request / validation errors (non-retryable)
+    if any(keyword in error_lower for keyword in [
+        '400', 'bad request', 'invalid', 'validation', 'malformed'
+    ]):
+        return NonRetryableAPIError(f"Invalid request: {error_message}")
+
+    # Default: treat unknown errors as non-retryable to be safe
+    return NonRetryableAPIError(f"Unexpected error: {error_message}")
+
+
+def should_retry_error(error: Exception) -> bool:
+    """
+    Determine if an error should be retried.
+
+    Args:
+        error: The exception to check
+
+    Returns:
+        True if the error should be retried, False otherwise
+    """
+    # If it's already categorized, use its retryable flag
+    if isinstance(error, DatabricksAPIError):
+        return error.retryable
+
+    # Otherwise, categorize it first
+    categorized = categorize_error(error)
+    return categorized.retryable
+
+
+def format_error_message(error: Exception, operation: str) -> str:
+    """
+    Format a user-friendly error message with context and suggestions.
+
+    Args:
+        error: The exception that occurred
+        operation: The operation that was being performed
+
+    Returns:
+        A formatted error message string
+    """
+    categorized = categorize_error(error) if not isinstance(error, DatabricksAPIError) else error
+
+    message = f"Error during {operation}: {categorized.message}"
+
+    # Add helpful suggestions based on error type
+    if isinstance(categorized, AuthenticationError):
+        message += "\n\nSuggestions:"
+        message += "\n- Verify DATABRICKS_HOST and authentication credentials are set correctly"
+        message += "\n- Check if OAuth token has expired (re-authenticate if needed)"
+        message += "\n- Ensure you have valid Databricks access credentials"
+
+    elif isinstance(categorized, PermissionError):
+        message += "\n\nSuggestions:"
+        message += "\n- Verify you have the necessary permissions for this operation"
+        message += "\n- Contact your Databricks workspace administrator"
+        message += "\n- Check if the resource is in a different workspace or catalog"
+
+    elif isinstance(categorized, RateLimitError):
+        message += "\n\nSuggestions:"
+        message += "\n- The operation will be retried automatically with exponential backoff"
+        message += "\n- If this persists, consider reducing request frequency"
+
+    elif isinstance(categorized, ResourceNotFoundError):
+        message += "\n\nSuggestions:"
+        message += "\n- Verify the resource ID/name is correct"
+        message += "\n- Check if the resource exists in your workspace"
+        message += "\n- Ensure you're looking in the correct catalog/schema (for Unity Catalog resources)"
+
+    elif isinstance(categorized, RetryableAPIError):
+        message += "\n\nThis appears to be a temporary issue. The operation will be retried automatically."
+
+    return message
+
+
+# ============ Retry Configuration and Decorators ============
+def create_retry_decorator(
+    max_attempts: int = 4,
+    min_wait: int = 1,
+    max_wait: int = 30,
+    operation_name: str = "operation"
+):
+    """
+    Create a retry decorator with exponential backoff for API operations.
+
+    Args:
+        max_attempts: Maximum number of retry attempts (default: 4)
+        min_wait: Minimum wait time in seconds between retries (default: 1)
+        max_wait: Maximum wait time in seconds between retries (default: 30)
+        operation_name: Name of the operation for logging
+
+    Returns:
+        A configured retry decorator
+    """
+    def before_sleep(retry_state):
+        """Log retry attempts."""
+        exception = retry_state.outcome.exception()
+        attempt = retry_state.attempt_number
+        wait_time = retry_state.next_action.sleep
+        logger.warning(
+            f"Retry attempt {attempt}/{max_attempts} for {operation_name} "
+            f"after error: {str(exception)[:100]}. "
+            f"Waiting {wait_time:.2f}s before next attempt..."
+        )
+
+    return retry(
+        retry=retry_if_exception_type((
+            RetryableAPIError,
+            RateLimitError,
+            ConnectionError,
+            TimeoutError,
+        )),
+        stop=stop_after_attempt(max_attempts),
+        wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
+        before_sleep=before_sleep,
+        reraise=True,
+    )
+
+
+def execute_with_retry(func, *args, **kwargs):
+    """
+    Execute a function with automatic retry logic for retryable errors.
+
+    Args:
+        func: The function to execute
+        *args: Positional arguments for the function
+        **kwargs: Keyword arguments for the function
+
+    Returns:
+        The function result
+
+    Raises:
+        The categorized exception if all retries fail
+    """
+    max_attempts = kwargs.pop('_max_retry_attempts', 4)
+    operation_name = kwargs.pop('_operation_name', func.__name__)
+
+    retry_decorator = create_retry_decorator(
+        max_attempts=max_attempts,
+        operation_name=operation_name
+    )
+
+    @retry_decorator
+    def _wrapped():
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            # Categorize the error
+            categorized = categorize_error(e)
+            # Re-raise categorized error (retry decorator will catch retryable ones)
+            raise categorized
+
+    try:
+        return _wrapped()
+    except RetryError as e:
+        # All retries exhausted
+        original_error = e.last_attempt.exception()
+        logger.error(
+            f"All {max_attempts} retry attempts failed for {operation_name}: "
+            f"{str(original_error)}"
+        )
+        raise original_error
+    except NonRetryableAPIError as e:
+        # Non-retryable error encountered
+        logger.error(f"Non-retryable error in {operation_name}: {str(e)}")
+        raise
+
 
 # Initialize MCP server
 app = Server("databricks-mcp-server")
@@ -34,38 +308,53 @@ _feature_engineering_client: Optional[FeatureEngineeringClient] = None
 
 
 def get_workspace_client() -> WorkspaceClient:
-    """Get or create workspace client."""
+    """Get or create workspace client with retry logic."""
     global _workspace_client
     if _workspace_client is None:
-        # Check if OAuth U2M (User-to-Machine) should be used
-        auth_type = os.getenv("DATABRICKS_AUTH_TYPE", "").lower()
+        def _create_client():
+            # Check if OAuth U2M (User-to-Machine) should be used
+            auth_type = os.getenv("DATABRICKS_AUTH_TYPE", "").lower()
 
-        if auth_type == "oauth-u2m" or auth_type == "oauth":
-            # OAuth U2M authentication - will open browser for user login
-            from databricks.sdk.core import Config
+            if auth_type == "oauth-u2m" or auth_type == "oauth":
+                # OAuth U2M authentication - will open browser for user login
+                from databricks.sdk.core import Config
 
-            config_kwargs = {
-                "host": os.getenv("DATABRICKS_HOST"),
-                "auth_type": "oauth-u2m",
-            }
+                config_kwargs = {
+                    "host": os.getenv("DATABRICKS_HOST"),
+                    "auth_type": "oauth-u2m",
+                }
 
-            # Optional: specify OAuth client ID if using custom OAuth app
-            if os.getenv("DATABRICKS_CLIENT_ID"):
-                config_kwargs["client_id"] = os.getenv("DATABRICKS_CLIENT_ID")
+                # Optional: specify OAuth client ID if using custom OAuth app
+                if os.getenv("DATABRICKS_CLIENT_ID"):
+                    config_kwargs["client_id"] = os.getenv("DATABRICKS_CLIENT_ID")
 
-            logger.info("Using OAuth U2M authentication - browser login required")
-            _workspace_client = WorkspaceClient(**config_kwargs)
-        else:
-            # Default: Authentication via environment variables or ~/.databrickscfg
-            # Supports: PAT tokens, OAuth M2M, Azure CLI, etc.
-            _workspace_client = WorkspaceClient()
+                logger.info("Using OAuth U2M authentication - browser login required")
+                client = WorkspaceClient(**config_kwargs)
+            else:
+                # Default: Authentication via environment variables or ~/.databrickscfg
+                # Supports: PAT tokens, OAuth M2M, Azure CLI, etc.
+                client = WorkspaceClient()
 
-        logger.info(f"Initialized WorkspaceClient for {_workspace_client.config.host}")
+            logger.info(f"Initialized WorkspaceClient for {client.config.host}")
+            return client
+
+        try:
+            # Create client with retry logic for transient network issues
+            _workspace_client = execute_with_retry(
+                _create_client,
+                _max_retry_attempts=3,
+                _operation_name="workspace_client_initialization"
+            )
+        except Exception as e:
+            error_msg = format_error_message(e, "workspace client initialization")
+            logger.error(error_msg)
+            raise
+
     return _workspace_client
 
 
 def get_account_client() -> AccountClient:
-    """Get or create account client."""
+    """Get or create account client with retry logic."""
     global _account_client
     if _account_client is None:
         account_id = os.getenv("DATABRICKS_ACCOUNT_ID")
@@ -74,27 +363,42 @@ def get_account_client() -> AccountClient:
                 "DATABRICKS_ACCOUNT_ID environment variable required for account operations"
             )
 
-        # Check if OAuth U2M should be used
-        auth_type = os.getenv("DATABRICKS_AUTH_TYPE", "").lower()
+        def _create_client():
+            # Check if OAuth U2M should be used
+            auth_type = os.getenv("DATABRICKS_AUTH_TYPE", "").lower()
 
-        if auth_type == "oauth-u2m" or auth_type == "oauth":
-            # OAuth U2M authentication
-            config_kwargs = {
-                "host": os.getenv("DATABRICKS_ACCOUNT_HOST", "https://accounts.cloud.databricks.com"),
-                "account_id": account_id,
-                "auth_type": "oauth-u2m",
-            }
+            if auth_type == "oauth-u2m" or auth_type == "oauth":
+                # OAuth U2M authentication
+                config_kwargs = {
+                    "host": os.getenv("DATABRICKS_ACCOUNT_HOST", "https://accounts.cloud.databricks.com"),
+                    "account_id": account_id,
+                    "auth_type": "oauth-u2m",
+                }
 
-            if os.getenv("DATABRICKS_CLIENT_ID"):
-                config_kwargs["client_id"] = os.getenv("DATABRICKS_CLIENT_ID")
+                if os.getenv("DATABRICKS_CLIENT_ID"):
+                    config_kwargs["client_id"] = os.getenv("DATABRICKS_CLIENT_ID")
 
-            logger.info("Using OAuth U2M authentication for account client")
-            _account_client = AccountClient(**config_kwargs)
-        else:
-            # Default authentication
-            _account_client = AccountClient(account_id=account_id)
+                logger.info("Using OAuth U2M authentication for account client")
+                client = AccountClient(**config_kwargs)
+            else:
+                # Default authentication
+                client = AccountClient(account_id=account_id)
 
-        logger.info(f"Initialized AccountClient for account {account_id}")
+            logger.info(f"Initialized AccountClient for account {account_id}")
+            return client
+
+        try:
+            # Create client with retry logic for transient network issues
+            _account_client = execute_with_retry(
+                _create_client,
+                _max_retry_attempts=3,
+                _operation_name="account_client_initialization"
+            )
+        except Exception as e:
+            error_msg = format_error_message(e, "account client initialization")
+            logger.error(error_msg)
+            raise
+
     return _account_client
 
 
@@ -1416,11 +1720,37 @@ async def list_tools() -> list[Tool]:
     ]
 
 
+def _execute_api_operation(operation_func, operation_name: str):
+    """
+    Execute an API operation with retry logic.
+
+    Args:
+        operation_func: The function that performs the API operation
+        operation_name: Name of the operation for logging and error messages
+
+    Returns:
+        The result of the operation
+
+    Raises:
+        DatabricksAPIError: Categorized error if the operation fails
+    """
+    return execute_with_retry(
+        operation_func,
+        _max_retry_attempts=4,
+        _operation_name=operation_name
+    )
+
+
 @app.call_tool()
 async def call_tool(name: str, arguments: Any) -> list[TextContent]:
-    """Execute Databricks API operations based on tool name."""
+    """Execute Databricks API operations based on tool name with enhanced error handling."""
     try:
         result = None
+
+        # Helper function to wrap operations with retry logic
+        def _run_operation(func):
+            """Wrap operation in retry logic."""
+            return _execute_api_operation(func, operation_name=name)
 
         # ============ Cluster Operations ============
         if name == "list_clusters":
@@ -1429,21 +1759,25 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             # Limit page size to prevent memory issues
             page_size = min(page_size, 1000)
 
-            clusters = []
-            count = 0
-            for c in w.clusters.list():
-                if count >= page_size:
-                    break
-                clusters.append({
-                    "cluster_id": c.cluster_id,
-                    "cluster_name": c.cluster_name,
-                    "state": str(c.state),
-                    "spark_version": c.spark_version,
-                    "node_type_id": c.node_type_id,
-                    "num_workers": c.num_workers,
-                })
-                count += 1
+            # Use retry logic for the list operation
+            def _list_clusters_paginated():
+                clusters = []
+                count = 0
+                for c in w.clusters.list():
+                    if count >= page_size:
+                        break
+                    clusters.append({
+                        "cluster_id": c.cluster_id,
+                        "cluster_name": c.cluster_name,
+                        "state": str(c.state),
+                        "spark_version": c.spark_version,
+                        "node_type_id": c.node_type_id,
+                        "num_workers": c.num_workers,
+                    })
+                    count += 1
+                return clusters
 
+            clusters = _run_operation(_list_clusters_paginated)
             result = {
                 "clusters": clusters,
                 "count": len(clusters),
@@ -1453,7 +1787,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
         elif name == "get_cluster":
             w = get_workspace_client()
-            cluster = w.clusters.get(cluster_id=arguments["cluster_id"])
+            cluster = _run_operation(lambda: w.clusters.get(cluster_id=arguments["cluster_id"]))
             result = cluster.as_dict()
 
         elif name == "create_cluster":
@@ -1475,22 +1809,25 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
                     max_workers=autoscale.get("max_workers"),
                 )
 
-            cluster = w.clusters.create(**create_args).result()
+            # Long-running operation with retry
+            cluster = _run_operation(lambda: w.clusters.create(**create_args).result())
             result = {"cluster_id": cluster.cluster_id, "status": "created"}
 
         elif name == "start_cluster":
             w = get_workspace_client()
-            w.clusters.start(cluster_id=arguments["cluster_id"]).result()
+            # Long-running operation with retry
+            _run_operation(lambda: w.clusters.start(cluster_id=arguments["cluster_id"]).result())
             result = {"status": "started", "cluster_id": arguments["cluster_id"]}
 
         elif name == "terminate_cluster":
             w = get_workspace_client()
-            w.clusters.delete(cluster_id=arguments["cluster_id"]).result()
+            # Long-running operation with retry
+            _run_operation(lambda: w.clusters.delete(cluster_id=arguments["cluster_id"]).result())
             result = {"status": "terminated", "cluster_id": arguments["cluster_id"]}
 
         elif name == "delete_cluster":
             w = get_workspace_client()
-            w.clusters.permanent_delete(cluster_id=arguments["cluster_id"])
+            _run_operation(lambda: w.clusters.permanent_delete(cluster_id=arguments["cluster_id"]))
             result = {"status": "deleted", "cluster_id": arguments["cluster_id"]}
 
         elif name == "get_clusters_batch":
@@ -1550,16 +1887,20 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
                 kwargs["name"] = arguments["name"]
 
             # Note: jobs.list() already uses pagination internally via the limit parameter
-            jobs = []
-            for j in w.jobs.list(**kwargs):
-                jobs.append({
-                    "job_id": j.job_id,
-                    "settings": {
-                        "name": j.settings.name if j.settings else None,
-                        "tasks": len(j.settings.tasks) if j.settings and j.settings.tasks else 0,
-                    },
-                })
+            # Use retry logic for the list operation
+            def _list_jobs():
+                jobs = []
+                for j in w.jobs.list(**kwargs):
+                    jobs.append({
+                        "job_id": j.job_id,
+                        "settings": {
+                            "name": j.settings.name if j.settings else None,
+                            "tasks": len(j.settings.tasks) if j.settings and j.settings.tasks else 0,
+                        },
+                    })
+                return jobs
 
+            jobs = _run_operation(_list_jobs)
             result = {
                 "jobs": jobs,
                 "count": len(jobs),
@@ -1567,7 +1908,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
         elif name == "get_job":
             w = get_workspace_client()
-            job = w.jobs.get(job_id=arguments["job_id"])
+            job = _run_operation(lambda: w.jobs.get(job_id=arguments["job_id"]))
             result = job.as_dict()
 
         elif name == "create_job":
@@ -1579,9 +1920,9 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
                 else None
             )
 
-            job = w.jobs.create(
+            job = _run_operation(lambda: w.jobs.create(
                 name=arguments["name"], tasks=tasks, job_clusters=job_clusters
-            )
+            ))
             result = {"job_id": job.job_id, "status": "created"}
 
         elif name == "run_job":
@@ -1590,7 +1931,8 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             if "notebook_params" in arguments:
                 kwargs["notebook_params"] = json.loads(arguments["notebook_params"])
 
-            run = w.jobs.run_now(**kwargs).result()
+            # Long-running operation with retry
+            run = _run_operation(lambda: w.jobs.run_now(**kwargs).result())
             result = {"run_id": run.run_id, "status": "completed"}
 
         elif name == "get_run":
@@ -2754,9 +3096,24 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # Format and return result
         return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
 
+    except DatabricksAPIError as e:
+        # Already categorized error with helpful message
+        error_msg = format_error_message(e, name)
+        logger.error(f"Databricks API error in {name}: {e.message}")
+        return [TextContent(type="text", text=error_msg)]
+
+    except ValueError as e:
+        # Validation errors (e.g., missing required env vars)
+        error_msg = format_error_message(e, name)
+        logger.error(f"Validation error in {name}: {str(e)}")
+        return [TextContent(type="text", text=error_msg)]
+
     except Exception as e:
-        logger.error(f"Error executing {name}: {e}", exc_info=True)
-        return [TextContent(type="text", text=f"Error: {str(e)}")]
+        # Unexpected errors - categorize and format
+        categorized = categorize_error(e)
+        error_msg = format_error_message(categorized, name)
+        logger.error(f"Unexpected error executing {name}: {e}", exc_info=True)
+        return [TextContent(type="text", text=error_msg)]
 
 
 def main():
