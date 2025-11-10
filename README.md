@@ -1,598 +1,365 @@
 # Databricks MCP Server
 
-A comprehensive Model Context Protocol (MCP) server that provides access to all Databricks REST APIs, including both Workspace-level and Account-level operations.
+A Model Context Protocol (MCP) server that provides comprehensive access to Databricks REST APIs, enabling AI assistants like Claude to manage and interact with Databricks workspaces.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 ## Overview
 
-This MCP server enables AI assistants like Claude to interact with Databricks through a standardized interface. It exposes Databricks functionality as MCP tools, allowing you to manage clusters, jobs, notebooks, Unity Catalog, and much more through conversational AI.
+The Databricks MCP Server exposes **82 tools** across **16 categories**, providing complete control over:
+
+- **Compute**: Clusters and SQL Warehouses
+- **Jobs & Workflows**: Job management and Delta Live Tables pipelines
+- **Data**: Unity Catalog, DBFS, and workspace objects
+- **SQL & Analytics**: SQL execution and Genie AI/BI
+- **ML & AI**: Model serving, vector search, and feature store
+- **Development**: Git repos and secrets management
+- **Account**: Multi-workspace and user management
+
+## Quick Start
+
+### Installation
+
+Choose one of these installation methods:
+
+**Option 1: Using uvx (Recommended)**
+```bash
+# No installation needed - runs directly
+uvx databricks-mcp
+```
+
+**Option 2: Using pip**
+```bash
+pip install databricks-mcp
+```
+
+**Option 3: Using Smithery**
+```bash
+npx @smithery/cli install databricks-mcp --client claude
+```
+
+### Configuration
+
+Add to your Claude Desktop configuration:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "databricks": {
+      "command": "uvx",
+      "args": ["databricks-mcp"],
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+      }
+    }
+  }
+}
+```
+
+Replace `your-workspace` with your actual Databricks workspace URL.
+
+### First Use
+
+After configuration, restart Claude Desktop. On first use:
+
+1. A browser window will open
+2. Log in to Databricks
+3. Authorize the connection
+4. You're ready to use Databricks through Claude!
 
 ## Features
 
-### Workspace-Level APIs
+### 🚀 Compute Management
+- **Clusters**: Create, start, stop, terminate, and manage compute clusters
+- **SQL Warehouses**: Manage SQL warehouse lifecycle and configurations
+- **Batch Operations**: Parallel operations on multiple resources
 
-#### Compute Management
-- **Clusters**: List, create, start, stop, terminate, and delete clusters
-- **SQL Warehouses**: List, get details, start, and stop SQL warehouses
+### 📊 Data & Analytics
+- **Unity Catalog**: Full three-level namespace management (catalogs, schemas, tables)
+- **SQL Execution**: Run queries, retrieve results, and manage statement execution
+- **Genie AI/BI**: Natural language queries with Databricks Genie
+- **DBFS**: File system operations for Databricks File System
 
-#### Jobs & Workflows
-- **Jobs**: List, create, update, run, and delete jobs
-- **Job Runs**: Get run details, cancel runs, monitor execution
-- **Pipelines**: List, get, start, and stop Delta Live Tables pipelines
+### 🤖 ML & AI
+- **Model Serving**: Deploy and query ML models via serving endpoints
+- **Model Registry**: Manage registered models and versions in Unity Catalog
+- **Vector Search**: Create and manage vector search endpoints and indexes
+- **Feature Store**: Build and publish feature tables for ML pipelines
 
-#### Data & Storage
-- **Unity Catalog**: Manage catalogs, schemas, and tables
-  - Create/list/delete catalogs
-  - Create/list/delete schemas
-  - List/get/delete tables
-- **DBFS**: List, get status, and delete files in Databricks File System
-- **Workspace Objects**: List, export, delete notebooks and directories
+### 💼 Jobs & Workflows
+- **Jobs**: Create, run, monitor, and manage Databricks jobs
+- **Delta Live Tables**: Manage DLT pipelines for data engineering
+- **Job Runs**: Track execution status and cancel running jobs
 
-#### SQL & Analytics
-- **SQL Statement Execution**: Execute SQL queries on SQL warehouses and retrieve results
-  - Execute statements with parameters and wait options
-  - Get query status and results
-  - Cancel running queries
-- **Genie (AI/BI)**: Interact with Databricks Genie for natural language data analysis
-  - Start conversations in Genie spaces
-  - Send messages and questions to Genie
-  - Retrieve query results from Genie responses
+### 🔐 Security & Management
+- **Secrets**: Secure credential storage with secret scopes
+- **Git Repos**: Integrate GitHub, GitLab, and Bitbucket repositories
+- **Account Management**: Multi-workspace administration and user management
+- **Workspace**: Manage notebooks, directories, and workspace objects
 
-#### AI & ML
-- **Model Registry**: Manage registered models in Unity Catalog
-  - List and get registered models
-  - List and get model versions
-- **Serving Endpoints**: Deploy and query ML models
-  - List and get serving endpoints
-  - Query endpoints with input data
-- **Vector Search**: Manage vector search infrastructure
-  - List and get vector search endpoints
-  - List and get vector search indexes
-- **Feature Store**: Manage feature tables for ML feature engineering
-  - Create and manage feature tables in Unity Catalog
-  - List feature tables in a schema
-  - Get feature table metadata
-  - Delete feature tables
-  - Create online stores for real-time feature serving
-  - Publish feature tables to online stores
+### ⚡ Advanced Features
+- **Error Handling**: Automatic retry with exponential backoff for transient failures
+- **Rate Limiting**: Built-in handling of API rate limits
+- **Batch Operations**: Efficient parallel processing of multiple requests
+- **Comprehensive Logging**: Detailed error messages with actionable guidance
 
-#### Development & Collaboration
-- **Repos**: List, create, update, and delete Git repositories
-- **Secrets**: Manage secret scopes and secrets for secure credential storage
+## Documentation
 
-### Account-Level APIs
+### 📚 Comprehensive Guides
 
-- **Workspaces**: List and get workspace details across your account
-- **Users**: List and get user information
-- **Groups**: List and get group information
-- **Service Principals**: List service principals
-- **Metastores**: List and get Unity Catalog metastore details
+- **[API Reference](docs/api-reference.md)** - Complete documentation of all 82 tools
+- **[Authentication](docs/authentication.md)** - Setup guide for all auth methods
+- **[Configuration](docs/configuration.md)** - Advanced configuration options
+- **[Examples](docs/examples.md)** - Practical usage examples and workflows
+- **[Error Handling](docs/error-handling.md)** - Troubleshooting and error reference
 
-## Installation
+### 🎯 Quick Links
 
-### Quick Start (Recommended - No Manual pip install Required!)
-
-The easiest way to use this MCP server with Claude Desktop is using `uvx`, which installs directly from GitHub:
-
-Just add the configuration below to your Claude Desktop config file and you're done! See [Claude Desktop Configuration](#claude-desktop-configuration) for details.
-
-### Prerequisites
-
-- Python 3.10 or higher
-- Databricks workspace access with appropriate permissions
-- Databricks authentication credentials (see Authentication section)
-
-### Install from GitHub
-
-```bash
-pip install git+https://github.com/YuujinHwang/databricks-mcp.git
-```
-
-### Install from Source (for development)
-
-```bash
-git clone https://github.com/YuujinHwang/databricks-mcp.git
-cd databricks-mcp
-pip install -e .
-```
-
-## Authentication
-
-This MCP server uses the official Databricks SDK, which supports multiple authentication methods:
-
-### Option 1: OAuth User Authentication (개인 사용자 OAuth - Recommended)
-
-**사용자 브라우저를 통한 로그인 방식입니다. 개인 자격증명으로 안전하게 접속할 수 있습니다.**
-
-```bash
-export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
-export DATABRICKS_AUTH_TYPE="oauth-u2m"
-```
-
-For account operations:
-```bash
-export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
-export DATABRICKS_AUTH_TYPE="oauth-u2m"
-export DATABRICKS_ACCOUNT_ID="your-account-id"
-export DATABRICKS_ACCOUNT_HOST="https://accounts.cloud.databricks.com"
-```
-
-처음 MCP 서버를 실행하면 브라우저가 열리고 Databricks에 로그인하라는 메시지가 표시됩니다. 로그인 후 토큰이 자동으로 저장되어 다음 실행 시에는 다시 로그인할 필요가 없습니다.
-
-**커스텀 OAuth 앱 사용 (선택사항):**
-```bash
-export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
-export DATABRICKS_AUTH_TYPE="oauth-u2m"
-export DATABRICKS_CLIENT_ID="your-custom-oauth-app-client-id"
-```
-
-### Option 2: Personal Access Token (PAT)
-
-For workspace operations:
-```bash
-export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
-export DATABRICKS_TOKEN="your-access-token"
-```
-
-For account operations (in addition to workspace credentials):
-```bash
-export DATABRICKS_ACCOUNT_ID="your-account-id"
-```
-
-### Option 3: Databricks Configuration File
-
-Create or edit `~/.databrickscfg`:
-
-```ini
-[DEFAULT]
-host = https://your-workspace.cloud.databricks.com
-token = your-access-token
-
-[ACCOUNT]
-host = https://accounts.cloud.databricks.com
-account_id = your-account-id
-token = your-account-token
-```
-
-### Option 4: OAuth M2M (Machine-to-Machine, For Service Principals)
-
-```bash
-export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
-export DATABRICKS_CLIENT_ID="your-client-id"
-export DATABRICKS_CLIENT_SECRET="your-client-secret"
-```
-
-## Configuration
-
-### Claude Desktop Configuration
-
-Add to your Claude Desktop configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
-
-#### Option 1: Using uvx (Easiest - No manual pip install required!)
-
-This method automatically installs from GitHub without requiring you to run pip install first.
-
-OAuth User Authentication (Recommended):
-
-```json
-{
-  "mcpServers": {
-    "databricks": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/YuujinHwang/databricks-mcp.git",
-        "databricks-mcp-server"
-      ],
-      "env": {
-        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
-        "DATABRICKS_AUTH_TYPE": "oauth-u2m"
-      }
-    }
-  }
-}
-```
-
-With Account operations:
-
-```json
-{
-  "mcpServers": {
-    "databricks": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/YuujinHwang/databricks-mcp.git",
-        "databricks-mcp-server"
-      ],
-      "env": {
-        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
-        "DATABRICKS_AUTH_TYPE": "oauth-u2m",
-        "DATABRICKS_ACCOUNT_ID": "your-account-id",
-        "DATABRICKS_ACCOUNT_HOST": "https://accounts.cloud.databricks.com"
-      }
-    }
-  }
-}
-```
-
-Using Personal Access Token:
-
-```json
-{
-  "mcpServers": {
-    "databricks": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/YuujinHwang/databricks-mcp.git",
-        "databricks-mcp-server"
-      ],
-      "env": {
-        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
-        "DATABRICKS_TOKEN": "your-access-token"
-      }
-    }
-  }
-}
-```
-
-#### Option 2: Using pip-installed package
-
-OAuth User Authentication (Recommended - 개인 OAuth 사용)
-
-```json
-{
-  "mcpServers": {
-    "databricks": {
-      "command": "python",
-      "args": [
-        "-m",
-        "databricks_mcp.server"
-      ],
-      "env": {
-        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
-        "DATABRICKS_AUTH_TYPE": "oauth-u2m"
-      }
-    }
-  }
-}
-```
-
-With Account operations:
-
-```json
-{
-  "mcpServers": {
-    "databricks": {
-      "command": "python",
-      "args": [
-        "-m",
-        "databricks_mcp.server"
-      ],
-      "env": {
-        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
-        "DATABRICKS_AUTH_TYPE": "oauth-u2m",
-        "DATABRICKS_ACCOUNT_ID": "your-account-id",
-        "DATABRICKS_ACCOUNT_HOST": "https://accounts.cloud.databricks.com"
-      }
-    }
-  }
-}
-```
-
-Using Personal Access Token:
-
-```json
-{
-  "mcpServers": {
-    "databricks": {
-      "command": "python",
-      "args": [
-        "-m",
-        "databricks_mcp.server"
-      ],
-      "env": {
-        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
-        "DATABRICKS_TOKEN": "your-access-token",
-        "DATABRICKS_ACCOUNT_ID": "your-account-id"
-      }
-    }
-  }
-}
-```
-
-### Using with Other MCP Clients
-
-The server can be run as a stdio-based MCP server:
-
-```bash
-python -m databricks_mcp.server
-```
-
-Or use the installed command:
-
-```bash
-databricks-mcp
-```
+| Need | Document |
+|------|----------|
+| Get started quickly | [Quick Start](#quick-start) |
+| See what tools are available | [API Reference](docs/api-reference.md) |
+| Set up authentication | [Authentication](docs/authentication.md) |
+| View usage examples | [Examples](docs/examples.md) |
+| Troubleshoot errors | [Error Handling](docs/error-handling.md) |
+| Configure for production | [Configuration](docs/configuration.md) |
 
 ## Usage Examples
 
-Once configured with Claude Desktop or another MCP client, you can use natural language to interact with Databricks:
+Once configured, use natural language with Claude:
 
-### Cluster Management
-
+### Cluster Operations
 ```
-"List all clusters in my workspace"
-"Create a new cluster named 'analytics-cluster' with Spark 13.3 and 2 workers"
-"Start the cluster with ID abc-123-def"
-"What's the status of cluster xyz-789?"
+"Create a new auto-scaling cluster with 2-8 workers"
+"Start cluster abc-123 and run my ETL job"
+"List all running clusters and their costs"
 ```
 
-### Job Operations
-
+### SQL Analytics
 ```
-"Show me all jobs"
-"Create a job that runs my notebook at /Users/me/analysis.py"
-"Run job ID 12345"
-"What's the status of run 67890?"
-"Cancel run 67890"
+"Execute: SELECT * FROM sales.transactions WHERE date >= '2024-01-01'"
+"Run this query on my SQL warehouse: SELECT COUNT(*) FROM users"
+"What's the status of my running SQL query?"
 ```
 
 ### Unity Catalog
-
 ```
-"List all catalogs"
 "Create a new catalog called 'analytics'"
-"Show me all schemas in the 'main' catalog"
-"Create a schema called 'bronze' in the 'analytics' catalog"
-"List all tables in analytics.bronze"
+"List all tables in production.sales schema"
+"Show me the schema of table ml_models.production.predictions"
 ```
 
-### Workspace Management
-
-```
-"List all notebooks in /Users/me/"
-"Export the notebook at /Users/me/analysis.py as Jupyter format"
-"Create a directory at /Shared/team-analytics"
-```
-
-### Git Integration
-
-```
-"List all repos"
-"Create a repo from https://github.com/myorg/myrepo using GitHub"
-"Update repo 123 to the 'dev' branch"
-```
-
-### Account Operations
-
-```
-"List all workspaces in my account"
-"Show me all users"
-"List all metastores in the account"
-"Get details for workspace ID 12345"
-```
-
-### SQL Query Execution
-
-```
-"Execute SELECT * FROM my_catalog.my_schema.my_table LIMIT 10 on warehouse abc-123"
-"Run this SQL query: SELECT COUNT(*) FROM sales WHERE region = 'US'"
-"Get the status of statement xyz-789"
-"Cancel the running query with ID abc-123"
-```
-
-### Genie AI/BI
-
-```
-"Start a new conversation in Genie space 01ef..."
-"Ask Genie: What were our top 10 products by revenue last quarter?"
-"Get the query result from Genie message xyz-123"
-"Send a message to Genie asking about user growth trends"
-```
-
-### ML & AI Operations
-
+### ML Operations
 ```
 "List all serving endpoints"
-"Query the 'my-model-endpoint' with this input data"
-"List all registered models in catalog 'ml_models'"
-"Get version 3 of model 'ml_models.production.churn_prediction'"
-"List all vector search endpoints"
-"Get details of vector search index 'embeddings.default.doc_vectors'"
+"Query my-model-endpoint with input data [1.0, 2.0, 3.0]"
+"Create a feature table for user demographics"
 ```
 
-## Available Tools
+### Job Management
+```
+"Create a daily ETL job that runs at 2 AM"
+"Run job 12345 with parameter date='2024-01-15'"
+"Show me the status of all running jobs"
+```
 
-The server exposes 80+ tools covering all major Databricks APIs:
+### Natural Language Analytics with Genie
+```
+"Ask Genie: What were the top 10 products by revenue last month?"
+"Use Genie to analyze customer churn trends"
+"Get query results from my Genie conversation"
+```
 
-### Clusters (6 tools)
-- `list_clusters`, `get_cluster`, `create_cluster`, `start_cluster`, `terminate_cluster`, `delete_cluster`
+## Tool Categories
 
-### Jobs (7 tools)
-- `list_jobs`, `get_job`, `create_job`, `run_job`, `get_run`, `cancel_run`, `delete_job`
+The server provides **82 tools** organized into these categories:
 
-### Workspace (5 tools)
-- `list_workspace_objects`, `get_workspace_object_status`, `export_workspace_object`, `delete_workspace_object`, `mkdirs`
+| Category | Tools | Description |
+|----------|-------|-------------|
+| **Clusters** | 8 | Compute cluster management and batch operations |
+| **Jobs** | 8 | Job creation, execution, and monitoring |
+| **Workspace** | 5 | Notebook and directory management |
+| **DBFS** | 3 | File system operations |
+| **Repos** | 5 | Git repository integration |
+| **SQL Warehouses** | 5 | SQL warehouse lifecycle management |
+| **Unity Catalog** | 12 | Three-level namespace management |
+| **Secrets** | 8 | Secure credential storage |
+| **Pipelines** | 4 | Delta Live Tables management |
+| **Account** | 9 | Multi-workspace administration |
+| **SQL Execution** | 4 | Query execution and management |
+| **Genie** | 4 | AI-powered natural language analytics |
+| **Vector Search** | 4 | Vector search infrastructure |
+| **Model Serving** | 3 | ML model deployment and inference |
+| **Model Registry** | 4 | Model version management |
+| **Feature Store** | 6 | ML feature engineering |
 
-### DBFS (3 tools)
-- `list_dbfs`, `get_dbfs_status`, `delete_dbfs`
+**Total: 82 tools** providing comprehensive Databricks functionality.
 
-### Repos (5 tools)
-- `list_repos`, `get_repo`, `create_repo`, `update_repo`, `delete_repo`
+See the complete [API Reference](docs/api-reference.md) for detailed tool documentation.
 
-### SQL Warehouses (4 tools)
-- `list_warehouses`, `get_warehouse`, `start_warehouse`, `stop_warehouse`
+## Authentication
 
-### Unity Catalog - Catalogs (4 tools)
-- `list_catalogs`, `get_catalog`, `create_catalog`, `delete_catalog`
+Multiple authentication methods supported:
 
-### Unity Catalog - Schemas (4 tools)
-- `list_schemas`, `get_schema`, `create_schema`, `delete_schema`
+### OAuth U2M (Recommended)
+```bash
+DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+DATABRICKS_AUTH_TYPE="oauth-u2m"
+```
+✅ Most secure
+✅ Automatic token refresh
+✅ Best for development
 
-### Unity Catalog - Tables (3 tools)
-- `list_tables`, `get_table`, `delete_table`
+### Personal Access Token
+```bash
+DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+DATABRICKS_TOKEN="dapi..."
+```
+✅ Simple setup
+✅ Good for CI/CD
+⚠️ Requires manual token management
 
-### Secrets (6 tools)
-- `list_secret_scopes`, `create_secret_scope`, `delete_secret_scope`, `list_secrets`, `put_secret`, `delete_secret`
+### OAuth M2M (Service Principal)
+```bash
+DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+DATABRICKS_CLIENT_ID="your-client-id"
+DATABRICKS_CLIENT_SECRET="your-client-secret"
+```
+✅ Best for production
+✅ Role-based permissions
+✅ Automated processes
 
-### Pipelines (4 tools)
-- `list_pipelines`, `get_pipeline`, `start_pipeline_update`, `stop_pipeline`
+### Configuration File
+```ini
+# ~/.databrickscfg
+[DEFAULT]
+host = https://your-workspace.cloud.databricks.com
+token = dapi...
+```
+✅ Multiple workspace management
+✅ Shared with Databricks CLI
 
-### SQL Statement Execution (3 tools)
-- `execute_statement`, `get_statement`, `cancel_statement_execution`
+See [Authentication Guide](docs/authentication.md) for complete setup instructions.
 
-### Genie AI/BI (4 tools)
-- `start_genie_conversation`, `create_genie_message`, `get_genie_message`, `get_genie_message_query_result`
+## Architecture
 
-### Vector Search (4 tools)
-- `list_vector_search_endpoints`, `get_vector_search_endpoint`, `list_vector_search_indexes`, `get_vector_search_index`
+The server is built with:
 
-### Serving Endpoints (3 tools)
-- `list_serving_endpoints`, `get_serving_endpoint`, `query_serving_endpoint`
-
-### Model Registry (4 tools)
-- `list_registered_models`, `get_registered_model`, `list_model_versions`, `get_model_version`
-
-### Feature Store (6 tools)
-- `create_feature_table` - Create a feature table in Unity Catalog
-- `get_feature_table` - Get metadata about a feature table
-- `list_feature_tables` - List feature tables in a Unity Catalog schema
-- `delete_feature_table` - Delete a feature table
-- `create_online_store` - Create an online feature store for real-time serving
-- `publish_feature_table` - Publish a feature table to an online store
-
-### Account Management (9 tools)
-- `list_account_workspaces`, `get_account_workspace`, `list_account_users`, `get_account_user`, `list_account_groups`, `get_account_group`, `list_account_service_principals`, `list_account_metastores`, `get_account_metastore`
-
-## Development
+- **MCP SDK**: Implements Model Context Protocol for tool exposure
+- **Databricks SDK**: Official Python SDK for Databricks APIs
+- **Modular Handlers**: 16 specialized handlers for different API domains
+- **Error Handling**: Automatic retry logic with exponential backoff
+- **Batch Processing**: Parallel operations using ThreadPoolExecutor
 
 ### Project Structure
 
 ```
 databricks-mcp/
-├── src/
-│   └── databricks_mcp/
-│       ├── __init__.py
-│       └── server.py          # Main MCP server implementation
-├── pyproject.toml             # Project configuration
-├── README.md                  # This file
-└── .gitignore
+├── src/databricks_mcp/
+│   ├── server.py              # Main MCP server
+│   └── handlers/              # API handlers
+│       ├── clusters.py        # Cluster management
+│       ├── jobs.py            # Job operations
+│       ├── sql.py             # SQL execution
+│       ├── unity_catalog.py   # UC management
+│       └── ...                # 12 more handlers
+├── docs/                      # Documentation
+│   ├── api-reference.md
+│   ├── authentication.md
+│   ├── configuration.md
+│   ├── examples.md
+│   └── error-handling.md
+├── pyproject.toml
+└── README.md
 ```
 
-### Running Tests
+## Error Handling
 
-```bash
-pip install -e ".[dev]"
-pytest
-```
+The server implements comprehensive error handling:
 
-### Code Formatting
+- **Automatic Retry**: Transient errors (5xx, 429, network) retry with exponential backoff
+- **Clear Messages**: User-friendly error messages with actionable guidance
+- **Categorization**: Errors classified as retryable vs. non-retryable
+- **Context**: Detailed error context for debugging
 
-```bash
-black src/
-ruff check src/
-```
+See [Error Handling Guide](docs/error-handling.md) for details.
 
-## Security Considerations
+## Requirements
 
-1. **Credentials**: Never commit credentials to version control. Use environment variables or the Databricks configuration file.
-2. **Permissions**: The MCP server operates with the permissions of the authenticated user/service principal. Follow the principle of least privilege.
-3. **Secrets**: When using the secrets API, secret values are write-only and cannot be retrieved through the API.
-4. **Network**: Ensure your Databricks workspace is accessible from where the MCP server runs.
+- Python 3.10 or higher
+- Databricks workspace access
+- Appropriate permissions for desired operations
+- Network access to Databricks APIs
 
-## Troubleshooting
+## Cloud Support
 
-### OAuth Authentication Issues
+Works with all Databricks cloud platforms:
 
-OAuth 브라우저 로그인 관련 문제:
-
-1. **브라우저가 자동으로 열리지 않는 경우:**
-   - 콘솔에 표시되는 URL을 수동으로 복사하여 브라우저에서 열기
-   - 로그인 후 브라우저에서 승인 완료
-
-2. **토큰 저장 위치:**
-   - OAuth 토큰은 `~/.databricks/token-cache.json`에 자동 저장됩니다
-   - 이 파일은 자동 갱신되며 수동 관리가 필요 없습니다
-
-3. **토큰 초기화가 필요한 경우:**
-   ```bash
-   rm ~/.databricks/token-cache.json
-   # MCP 서버를 다시 시작하면 재인증 진행
-   ```
-
-4. **MCP 환경에서 OAuth 사용 시 주의사항:**
-   - Claude Desktop이 처음 MCP 서버를 시작할 때 브라우저 창이 열립니다
-   - 로그인 후 Claude Desktop을 재시작할 필요가 없습니다
-   - 토큰이 만료되면 자동으로 갱신을 시도합니다
-
-### Authentication Errors
-
-If you see authentication errors:
-1. Verify your credentials are correctly set
-2. Check that your token hasn't expired (PAT의 경우)
-3. Ensure your workspace URL is correct (include `https://`)
-4. For account operations, verify `DATABRICKS_ACCOUNT_ID` is set
-5. OAuth 사용 시: 토큰 캐시를 삭제하고 재인증 시도
-
-### Permission Errors
-
-If operations fail with permission errors:
-1. Verify your user/service principal has the necessary permissions
-2. For Unity Catalog operations, ensure you have the appropriate grants
-3. For account operations, ensure you have account-level access
-
-### Connection Issues
-
-If you can't connect to Databricks:
-1. Check your network connectivity
-2. Verify the workspace URL is correct
-3. Check if there are any firewall rules blocking access
+- **AWS**: `https://your-workspace.cloud.databricks.com`
+- **Azure**: `https://adb-<workspace-id>.<random>.azuredatabricks.net`
+- **GCP**: `https://<workspace-id>.gcp.databricks.com`
 
 ## Contributing
 
-Contributions are welcome! Please:
+Contributions welcome! Please:
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+3. Make your changes with tests
+4. Submit a pull request
 
-## License
+See issues for areas needing help.
 
-MIT License - see LICENSE file for details
+## Security
 
-## Acknowledgments
-
-- Built using the [Model Context Protocol](https://modelcontextprotocol.io/)
-- Powered by the [Databricks SDK for Python](https://github.com/databricks/databricks-sdk-py)
-- Inspired by the Databricks community
+- **Credentials**: Never commit credentials to version control
+- **Permissions**: Server operates with user/service principal permissions
+- **Secrets**: Secret values are write-only via API
+- **Network**: Ensure secure network connectivity
 
 ## Support
 
-For issues and questions:
-- GitHub Issues: [Create an issue](https://github.com/yourusername/databricks-mcp/issues)
-- Databricks Documentation: [docs.databricks.com](https://docs.databricks.com/)
-- MCP Documentation: [modelcontextprotocol.io](https://modelcontextprotocol.io/)
+- **Documentation**: [Complete documentation in docs/](docs/)
+- **Issues**: [GitHub Issues](https://github.com/YuujinHwang/databricks-mcp/issues)
+- **Databricks Docs**: [docs.databricks.com](https://docs.databricks.com/)
+- **MCP Docs**: [modelcontextprotocol.io](https://modelcontextprotocol.io/)
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built with [Model Context Protocol](https://modelcontextprotocol.io/)
+- Powered by [Databricks SDK for Python](https://github.com/databricks/databricks-sdk-py)
+- Inspired by the Databricks community
 
 ## Roadmap
 
-Completed features:
-- [x] SQL Statement Execution API for running queries
-- [x] Genie (AI/BI) API for natural language data analysis
-- [x] Vector Search API for managing vector search infrastructure
-- [x] Serving Endpoints API for ML model deployment and inference
-- [x] Model Registry API for Unity Catalog models
+### ✅ Completed
+- [x] 82 tools across 16 categories
+- [x] SQL execution with chunked results
+- [x] Genie AI/BI integration
+- [x] Vector search support
+- [x] Model serving and registry
+- [x] Feature Store API
+- [x] Comprehensive error handling
+- [x] Batch operations
+- [x] Modular handler architecture
+- [x] Complete documentation
 
-Future enhancements planned:
-- [x] Feature Store API integration
-- [ ] Batch operations for efficiency
-- [ ] Streaming support for large result sets
-- [ ] Custom prompts and resources
-- [ ] Enhanced error handling and retry logic
+### 🚧 Planned
+- [ ] Enhanced streaming for large result sets
+- [ ] Custom MCP resources
+- [ ] Additional batch operations
 - [ ] Comprehensive test coverage
-- [ ] Examples and tutorials
+- [ ] Performance optimizations
+
+---
+
+**Ready to get started?** Follow the [Quick Start](#quick-start) guide above!
