@@ -40,13 +40,39 @@ from .handlers import (
     UnityCatalogHandler,
     SecretsHandler,
     PipelinesHandler,
-    AccountHandler,
     SQLHandler,
     GenieHandler,
     VectorSearchHandler,
     ServingHandler,
     ModelsHandler,
     FeatureStoreHandler,
+    # Account-level handlers
+    IAMHandler,
+    BillingHandler,
+    ProvisioningHandler,
+    SettingsHandler,
+    OAuthHandler,
+    AccountUnityCatalogHandler,
+    # NEW: Workspace compute additions
+    InstancePoolsHandler,
+    ClusterPoliciesHandler,
+    # NEW: Workspace ML additions
+    ExperimentsHandler,
+    # NEW: Workspace admin
+    WorkspaceIAMHandler,
+    WorkspaceSettingsHandler,
+    WorkspaceOAuthHandler,
+    # NEW: Apps, Dashboards, Sharing
+    AppsHandler,
+    DashboardsHandler,
+    DeltaSharingHandler,
+    # NEW: Governance
+    DataQualityHandler,
+    AssetTagsHandler,
+    # NEW: Marketplace, CleanRooms, Agents
+    MarketplaceHandler,
+    CleanRoomsHandler,
+    AgentBricksHandler,
 )
 
 # Configure logging
@@ -438,7 +464,7 @@ async def list_tools() -> list[Tool]:
     """List all available Databricks API tools from all handlers."""
     tools = []
 
-    # Collect tools from all handlers
+    # Workspace-level handlers
     tools.extend(ClustersHandler.get_tools())
     tools.extend(JobsHandler.get_tools())
     tools.extend(WorkspaceHandler.get_tools())
@@ -448,13 +474,46 @@ async def list_tools() -> list[Tool]:
     tools.extend(UnityCatalogHandler.get_tools())
     tools.extend(SecretsHandler.get_tools())
     tools.extend(PipelinesHandler.get_tools())
-    tools.extend(AccountHandler.get_tools())
     tools.extend(SQLHandler.get_tools())
     tools.extend(GenieHandler.get_tools())
     tools.extend(VectorSearchHandler.get_tools())
     tools.extend(ServingHandler.get_tools())
     tools.extend(ModelsHandler.get_tools())
     tools.extend(FeatureStoreHandler.get_tools())
+
+    # Account-level handlers
+    tools.extend(IAMHandler.get_tools())
+    tools.extend(BillingHandler.get_tools())
+    tools.extend(ProvisioningHandler.get_tools())
+    tools.extend(SettingsHandler.get_tools())
+    tools.extend(OAuthHandler.get_tools())
+    tools.extend(AccountUnityCatalogHandler.get_tools())
+
+    # NEW: Workspace compute additions
+    tools.extend(InstancePoolsHandler.get_tools())
+    tools.extend(ClusterPoliciesHandler.get_tools())
+
+    # NEW: Workspace ML additions
+    tools.extend(ExperimentsHandler.get_tools())
+
+    # NEW: Workspace admin
+    tools.extend(WorkspaceIAMHandler.get_tools())
+    tools.extend(WorkspaceSettingsHandler.get_tools())
+    tools.extend(WorkspaceOAuthHandler.get_tools())
+
+    # NEW: Apps, Dashboards, Sharing
+    tools.extend(AppsHandler.get_tools())
+    tools.extend(DashboardsHandler.get_tools())
+    tools.extend(DeltaSharingHandler.get_tools())
+
+    # NEW: Governance
+    tools.extend(DataQualityHandler.get_tools())
+    tools.extend(AssetTagsHandler.get_tools())
+
+    # NEW: Marketplace, CleanRooms, Agents
+    tools.extend(MarketplaceHandler.get_tools())
+    tools.extend(CleanRoomsHandler.get_tools())
+    tools.extend(AgentBricksHandler.get_tools())
 
     return tools
 
@@ -575,16 +634,110 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             "start_pipeline_update": (PipelinesHandler, w),
             "stop_pipeline": (PipelinesHandler, w),
 
-            # Account
-            "list_account_workspaces": (AccountHandler, a),
-            "get_account_workspace": (AccountHandler, a),
-            "list_account_users": (AccountHandler, a),
-            "get_account_user": (AccountHandler, a),
-            "list_account_groups": (AccountHandler, a),
-            "get_account_group": (AccountHandler, a),
-            "list_account_service_principals": (AccountHandler, a),
-            "list_account_metastores": (AccountHandler, a),
-            "get_account_metastore": (AccountHandler, a),
+            # Account - IAM
+            "list_account_workspaces": (IAMHandler, a),
+            "get_account_workspace": (IAMHandler, a),
+            "create_account_workspace": (IAMHandler, a),
+            "update_account_workspace": (IAMHandler, a),
+            "delete_account_workspace": (IAMHandler, a),
+            "list_account_users": (IAMHandler, a),
+            "get_account_user": (IAMHandler, a),
+            "create_account_user": (IAMHandler, a),
+            "update_account_user": (IAMHandler, a),
+            "delete_account_user": (IAMHandler, a),
+            "list_account_groups": (IAMHandler, a),
+            "get_account_group": (IAMHandler, a),
+            "create_account_group": (IAMHandler, a),
+            "update_account_group": (IAMHandler, a),
+            "delete_account_group": (IAMHandler, a),
+            "list_account_service_principals": (IAMHandler, a),
+            "get_account_service_principal": (IAMHandler, a),
+            "create_account_service_principal": (IAMHandler, a),
+            "update_account_service_principal": (IAMHandler, a),
+            "delete_account_service_principal": (IAMHandler, a),
+            "list_workspace_assignments": (IAMHandler, a),
+            "get_workspace_assignment": (IAMHandler, a),
+            "update_workspace_assignment": (IAMHandler, a),
+            "delete_workspace_assignment": (IAMHandler, a),
+
+            # Account - Billing
+            "download_billable_usage": (BillingHandler, a),
+            "list_budgets": (BillingHandler, a),
+            "get_budget": (BillingHandler, a),
+            "create_budget": (BillingHandler, a),
+            "update_budget": (BillingHandler, a),
+            "delete_budget": (BillingHandler, a),
+            "list_log_delivery": (BillingHandler, a),
+            "get_log_delivery": (BillingHandler, a),
+            "create_log_delivery": (BillingHandler, a),
+            "update_log_delivery": (BillingHandler, a),
+            "list_usage_dashboards": (BillingHandler, a),
+            "create_usage_dashboard": (BillingHandler, a),
+
+            # Account - Provisioning
+            "list_credentials": (ProvisioningHandler, a),
+            "get_credential": (ProvisioningHandler, a),
+            "create_credential": (ProvisioningHandler, a),
+            "delete_credential": (ProvisioningHandler, a),
+            "list_storage_configurations": (ProvisioningHandler, a),
+            "get_storage_configuration": (ProvisioningHandler, a),
+            "create_storage_configuration": (ProvisioningHandler, a),
+            "delete_storage_configuration": (ProvisioningHandler, a),
+            "list_networks": (ProvisioningHandler, a),
+            "get_network": (ProvisioningHandler, a),
+            "create_network": (ProvisioningHandler, a),
+            "delete_network": (ProvisioningHandler, a),
+            "list_vpc_endpoints": (ProvisioningHandler, a),
+            "get_vpc_endpoint": (ProvisioningHandler, a),
+            "create_vpc_endpoint": (ProvisioningHandler, a),
+            "delete_vpc_endpoint": (ProvisioningHandler, a),
+            "list_private_access_settings": (ProvisioningHandler, a),
+            "get_private_access_settings": (ProvisioningHandler, a),
+            "create_private_access_settings": (ProvisioningHandler, a),
+            "replace_private_access_settings": (ProvisioningHandler, a),
+            "delete_private_access_settings": (ProvisioningHandler, a),
+            "list_encryption_keys": (ProvisioningHandler, a),
+            "get_encryption_key": (ProvisioningHandler, a),
+            "create_encryption_key": (ProvisioningHandler, a),
+            "delete_encryption_key": (ProvisioningHandler, a),
+
+            # Account - Settings
+            "list_ip_access_lists": (SettingsHandler, a),
+            "get_ip_access_list": (SettingsHandler, a),
+            "create_ip_access_list": (SettingsHandler, a),
+            "replace_ip_access_list": (SettingsHandler, a),
+            "delete_ip_access_list": (SettingsHandler, a),
+
+            # Account - OAuth
+            "list_custom_app_integrations": (OAuthHandler, a),
+            "get_custom_app_integration": (OAuthHandler, a),
+            "create_custom_app_integration": (OAuthHandler, a),
+            "update_custom_app_integration": (OAuthHandler, a),
+            "delete_custom_app_integration": (OAuthHandler, a),
+            "list_published_app_integrations": (OAuthHandler, a),
+            "get_published_app_integration": (OAuthHandler, a),
+            "create_published_app_integration": (OAuthHandler, a),
+            "update_published_app_integration": (OAuthHandler, a),
+            "delete_published_app_integration": (OAuthHandler, a),
+            "list_service_principal_secrets": (OAuthHandler, a),
+            "create_service_principal_secret": (OAuthHandler, a),
+            "delete_service_principal_secret": (OAuthHandler, a),
+
+            # Account - Unity Catalog
+            "list_account_metastores": (AccountUnityCatalogHandler, a),
+            "get_account_metastore": (AccountUnityCatalogHandler, a),
+            "create_account_metastore": (AccountUnityCatalogHandler, a),
+            "update_account_metastore": (AccountUnityCatalogHandler, a),
+            "delete_account_metastore": (AccountUnityCatalogHandler, a),
+            "list_metastore_assignments": (AccountUnityCatalogHandler, a),
+            "get_metastore_assignment": (AccountUnityCatalogHandler, a),
+            "create_metastore_assignment": (AccountUnityCatalogHandler, a),
+            "update_metastore_assignment": (AccountUnityCatalogHandler, a),
+            "delete_metastore_assignment": (AccountUnityCatalogHandler, a),
+            "list_storage_credentials": (AccountUnityCatalogHandler, a),
+            "get_storage_credential": (AccountUnityCatalogHandler, a),
+            "create_storage_credential": (AccountUnityCatalogHandler, a),
+            "update_storage_credential": (AccountUnityCatalogHandler, a),
 
             # SQL
             "execute_statement": (SQLHandler, w),
@@ -622,6 +775,165 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             "list_feature_tables": (FeatureStoreHandler, w, fe),
             "create_online_store": (FeatureStoreHandler, w, fe),
             "publish_feature_table": (FeatureStoreHandler, w, fe),
+
+            # Instance Pools
+            "list_instance_pools": (InstancePoolsHandler, w),
+            "get_instance_pool": (InstancePoolsHandler, w),
+            "create_instance_pool": (InstancePoolsHandler, w),
+            "edit_instance_pool": (InstancePoolsHandler, w),
+            "delete_instance_pool": (InstancePoolsHandler, w),
+
+            # Cluster Policies
+            "list_cluster_policies": (ClusterPoliciesHandler, w),
+            "get_cluster_policy": (ClusterPoliciesHandler, w),
+            "create_cluster_policy": (ClusterPoliciesHandler, w),
+            "edit_cluster_policy": (ClusterPoliciesHandler, w),
+            "delete_cluster_policy": (ClusterPoliciesHandler, w),
+            "list_policy_families": (ClusterPoliciesHandler, w),
+            "get_policy_family": (ClusterPoliciesHandler, w),
+
+            # MLflow Experiments
+            "list_experiments": (ExperimentsHandler, w),
+            "get_experiment": (ExperimentsHandler, w),
+            "get_experiment_by_name": (ExperimentsHandler, w),
+            "create_experiment": (ExperimentsHandler, w),
+            "update_experiment": (ExperimentsHandler, w),
+            "delete_experiment": (ExperimentsHandler, w),
+            "restore_experiment": (ExperimentsHandler, w),
+            "set_experiment_tag": (ExperimentsHandler, w),
+            "search_runs": (ExperimentsHandler, w),
+            "get_run": (ExperimentsHandler, w),
+            "create_run": (ExperimentsHandler, w),
+            "update_run": (ExperimentsHandler, w),
+            "delete_run": (ExperimentsHandler, w),
+            "restore_run": (ExperimentsHandler, w),
+            "log_metric": (ExperimentsHandler, w),
+            "log_param": (ExperimentsHandler, w),
+            "set_run_tag": (ExperimentsHandler, w),
+
+            # Workspace IAM
+            "get_current_user": (WorkspaceIAMHandler, w),
+            "get_permissions": (WorkspaceIAMHandler, w),
+            "set_permissions": (WorkspaceIAMHandler, w),
+            "update_permissions": (WorkspaceIAMHandler, w),
+            "get_permission_levels": (WorkspaceIAMHandler, w),
+            "list_workspace_groups": (WorkspaceIAMHandler, w),
+            "get_workspace_group": (WorkspaceIAMHandler, w),
+            "create_workspace_group": (WorkspaceIAMHandler, w),
+            "update_workspace_group": (WorkspaceIAMHandler, w),
+            "delete_workspace_group": (WorkspaceIAMHandler, w),
+            "list_workspace_users": (WorkspaceIAMHandler, w),
+            "get_workspace_user": (WorkspaceIAMHandler, w),
+            "create_workspace_user": (WorkspaceIAMHandler, w),
+            "update_workspace_user": (WorkspaceIAMHandler, w),
+            "delete_workspace_user": (WorkspaceIAMHandler, w),
+            "list_workspace_service_principals": (WorkspaceIAMHandler, w),
+            "get_workspace_service_principal": (WorkspaceIAMHandler, w),
+            "create_workspace_service_principal": (WorkspaceIAMHandler, w),
+            "update_workspace_service_principal": (WorkspaceIAMHandler, w),
+            "delete_workspace_service_principal": (WorkspaceIAMHandler, w),
+
+            # Workspace Settings
+            "list_workspace_tokens": (WorkspaceSettingsHandler, w),
+            "create_workspace_token": (WorkspaceSettingsHandler, w),
+            "revoke_workspace_token": (WorkspaceSettingsHandler, w),
+            "list_workspace_ip_access_lists": (WorkspaceSettingsHandler, w),
+            "get_workspace_ip_access_list": (WorkspaceSettingsHandler, w),
+            "create_workspace_ip_access_list": (WorkspaceSettingsHandler, w),
+            "replace_workspace_ip_access_list": (WorkspaceSettingsHandler, w),
+            "delete_workspace_ip_access_list": (WorkspaceSettingsHandler, w),
+            "get_workspace_config": (WorkspaceSettingsHandler, w),
+            "set_workspace_config": (WorkspaceSettingsHandler, w),
+            "list_global_init_scripts": (WorkspaceSettingsHandler, w),
+            "get_global_init_script": (WorkspaceSettingsHandler, w),
+            "create_global_init_script": (WorkspaceSettingsHandler, w),
+            "update_global_init_script": (WorkspaceSettingsHandler, w),
+            "delete_global_init_script": (WorkspaceSettingsHandler, w),
+
+            # Workspace OAuth
+            "list_workspace_custom_apps": (WorkspaceOAuthHandler, w),
+            "get_workspace_custom_app": (WorkspaceOAuthHandler, w),
+            "create_workspace_custom_app": (WorkspaceOAuthHandler, w),
+            "update_workspace_custom_app": (WorkspaceOAuthHandler, w),
+            "delete_workspace_custom_app": (WorkspaceOAuthHandler, w),
+
+            # Apps
+            "list_apps": (AppsHandler, w),
+            "get_app": (AppsHandler, w),
+            "create_app": (AppsHandler, w),
+            "update_app": (AppsHandler, w),
+            "delete_app": (AppsHandler, w),
+            "deploy_app": (AppsHandler, w),
+            "start_app": (AppsHandler, w),
+            "stop_app": (AppsHandler, w),
+
+            # Dashboards
+            "list_dashboards": (DashboardsHandler, w),
+            "get_dashboard": (DashboardsHandler, w),
+            "create_dashboard": (DashboardsHandler, w),
+            "update_dashboard": (DashboardsHandler, w),
+            "delete_dashboard": (DashboardsHandler, w),
+            "migrate_dashboard": (DashboardsHandler, w),
+            "publish_dashboard": (DashboardsHandler, w),
+            "unpublish_dashboard": (DashboardsHandler, w),
+            "get_published_dashboard": (DashboardsHandler, w),
+            "list_dashboard_schedules": (DashboardsHandler, w),
+            "get_dashboard_schedule": (DashboardsHandler, w),
+            "create_dashboard_schedule": (DashboardsHandler, w),
+            "update_dashboard_schedule": (DashboardsHandler, w),
+            "delete_dashboard_schedule": (DashboardsHandler, w),
+            "list_schedule_subscriptions": (DashboardsHandler, w),
+            "get_schedule_subscription": (DashboardsHandler, w),
+            "create_schedule_subscription": (DashboardsHandler, w),
+            "delete_schedule_subscription": (DashboardsHandler, w),
+
+            # Delta Sharing
+            "list_recipients": (DeltaSharingHandler, w),
+            "get_recipient": (DeltaSharingHandler, w),
+            "create_recipient": (DeltaSharingHandler, w),
+            "update_recipient": (DeltaSharingHandler, w),
+            "delete_recipient": (DeltaSharingHandler, w),
+            "rotate_recipient_token": (DeltaSharingHandler, w),
+            "list_shares": (DeltaSharingHandler, w),
+            "get_share": (DeltaSharingHandler, w),
+            "create_share": (DeltaSharingHandler, w),
+            "update_share": (DeltaSharingHandler, w),
+            "delete_share": (DeltaSharingHandler, w),
+
+            # Data Quality
+            "list_quality_monitors": (DataQualityHandler, w),
+            "get_quality_monitor": (DataQualityHandler, w),
+            "create_quality_monitor": (DataQualityHandler, w),
+            "update_quality_monitor": (DataQualityHandler, w),
+            "delete_quality_monitor": (DataQualityHandler, w),
+            "run_quality_monitor": (DataQualityHandler, w),
+
+            # Asset Tags
+            "list_asset_tags": (AssetTagsHandler, w),
+            "create_asset_tag": (AssetTagsHandler, w),
+            "delete_asset_tag": (AssetTagsHandler, w),
+
+            # Marketplace
+            "list_marketplace_listings": (MarketplaceHandler, w),
+            "get_marketplace_listing": (MarketplaceHandler, w),
+            "list_marketplace_installations": (MarketplaceHandler, w),
+            "create_marketplace_installation": (MarketplaceHandler, w),
+            "delete_marketplace_installation": (MarketplaceHandler, w),
+            "list_marketplace_fulfillments": (MarketplaceHandler, w),
+
+            # Clean Rooms
+            "list_clean_rooms": (CleanRoomsHandler, w),
+            "get_clean_room": (CleanRoomsHandler, w),
+            "create_clean_room": (CleanRoomsHandler, w),
+            "update_clean_room": (CleanRoomsHandler, w),
+            "delete_clean_room": (CleanRoomsHandler, w),
+
+            # Agents
+            "list_agents": (AgentBricksHandler, w),
+            "get_agent": (AgentBricksHandler, w),
+            "create_agent": (AgentBricksHandler, w),
+            "update_agent": (AgentBricksHandler, w),
+            "delete_agent": (AgentBricksHandler, w),
         }
 
         # Route to appropriate handler

@@ -1,39 +1,102 @@
 """
 Databricks MCP Handlers
-Organized by Databricks API documentation structure
+Organized by Databricks API documentation structure (docs.databricks.com/api)
 """
-from .clusters import ClustersHandler
-from .jobs import JobsHandler
-from .workspace import WorkspaceHandler
-from .dbfs import DBFSHandler
-from .repos import ReposHandler
-from .warehouses import WarehousesHandler
-from .unity_catalog import UnityCatalogHandler
-from .secrets import SecretsHandler
-from .pipelines import PipelinesHandler
-from .account import AccountHandler
-from .sql import SQLHandler
-from .genie import GenieHandler
-from .vector_search import VectorSearchHandler
-from .serving import ServingHandler
-from .models import ModelsHandler
-from .feature_store import FeatureStoreHandler
+
+# Account-level handlers (docs.databricks.com/api/account)
+from .account import (
+    IAMHandler,
+    BillingHandler,
+    ProvisioningHandler,
+    SettingsHandler,
+    OAuthHandler,
+    AccountUnityCatalogHandler,
+)
+
+# Workspace-level handlers (docs.databricks.com/api/workspace)
+from .workspace import (
+    # Compute
+    ClustersHandler,
+    InstancePoolsHandler,
+    ClusterPoliciesHandler,
+    # Jobs & Workflows
+    JobsHandler,
+    PipelinesHandler,
+    # Machine Learning
+    ModelsHandler,
+    FeatureStoreHandler,
+    ServingHandler,
+    ExperimentsHandler,
+    # Data Management
+    WorkspaceHandler,
+    DBFSHandler,
+    ReposHandler,
+    UnityCatalogHandler,
+    # SQL & Analytics
+    SQLHandler,
+    WarehousesHandler,
+    GenieHandler,
+    # Vector Search
+    VectorSearchHandler,
+    # Secrets
+    SecretsHandler,
+    # Administration
+    WorkspaceIAMHandler,
+    WorkspaceSettingsHandler,
+    WorkspaceOAuthHandler,
+    # Apps
+    AppsHandler,
+    # Dashboards
+    DashboardsHandler,
+    # Sharing
+    DeltaSharingHandler,
+    # Governance
+    DataQualityHandler,
+    AssetTagsHandler,
+    # Marketplace
+    MarketplaceHandler,
+    # Clean Rooms
+    CleanRoomsHandler,
+    # Agents
+    AgentBricksHandler,
+)
 
 __all__ = [
+    # Account-level handlers
+    "IAMHandler",
+    "BillingHandler",
+    "ProvisioningHandler",
+    "SettingsHandler",
+    "OAuthHandler",
+    "AccountUnityCatalogHandler",
+    # Workspace-level handlers
     "ClustersHandler",
+    "InstancePoolsHandler",
+    "ClusterPoliciesHandler",
     "JobsHandler",
+    "PipelinesHandler",
+    "ModelsHandler",
+    "FeatureStoreHandler",
+    "ServingHandler",
+    "ExperimentsHandler",
     "WorkspaceHandler",
     "DBFSHandler",
     "ReposHandler",
-    "WarehousesHandler",
     "UnityCatalogHandler",
-    "SecretsHandler",
-    "PipelinesHandler",
-    "AccountHandler",
     "SQLHandler",
+    "WarehousesHandler",
     "GenieHandler",
     "VectorSearchHandler",
-    "ServingHandler",
-    "ModelsHandler",
-    "FeatureStoreHandler",
+    "SecretsHandler",
+    "WorkspaceIAMHandler",
+    "WorkspaceSettingsHandler",
+    "WorkspaceOAuthHandler",
+    "AppsHandler",
+    "DashboardsHandler",
+    "DeltaSharingHandler",
+    "DataQualityHandler",
+    "AssetTagsHandler",
+    "MarketplaceHandler",
+    "CleanRoomsHandler",
+    "AgentBricksHandler",
 ]
