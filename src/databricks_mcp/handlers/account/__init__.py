@@ -2,7 +2,7 @@
 Account-level API Handlers
 Organized according to docs.databricks.com/api/account structure
 """
-from .iam import IAMHandler
+from .iam import AccountIAMHandler as IAMHandler
 from .billing import BillingHandler
 from .provisioning import ProvisioningHandler
 from .settings import SettingsHandler
