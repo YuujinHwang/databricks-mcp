@@ -11,13 +11,22 @@ from .warehouses import WarehousesHandler
 from .unity_catalog import UnityCatalogHandler
 from .secrets import SecretsHandler
 from .pipelines import PipelinesHandler
-from .account import AccountHandler
 from .sql import SQLHandler
 from .genie import GenieHandler
 from .vector_search import VectorSearchHandler
 from .serving import ServingHandler
 from .models import ModelsHandler
 from .feature_store import FeatureStoreHandler
+
+# Account-level handlers
+from .account import (
+    IAMHandler,
+    BillingHandler,
+    ProvisioningHandler,
+    SettingsHandler,
+    OAuthHandler,
+    AccountUnityCatalogHandler,
+)
 
 __all__ = [
     "ClustersHandler",
@@ -29,11 +38,17 @@ __all__ = [
     "UnityCatalogHandler",
     "SecretsHandler",
     "PipelinesHandler",
-    "AccountHandler",
     "SQLHandler",
     "GenieHandler",
     "VectorSearchHandler",
     "ServingHandler",
     "ModelsHandler",
     "FeatureStoreHandler",
+    # Account-level handlers
+    "IAMHandler",
+    "BillingHandler",
+    "ProvisioningHandler",
+    "SettingsHandler",
+    "OAuthHandler",
+    "AccountUnityCatalogHandler",
 ]

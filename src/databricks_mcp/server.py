@@ -40,13 +40,19 @@ from .handlers import (
     UnityCatalogHandler,
     SecretsHandler,
     PipelinesHandler,
-    AccountHandler,
     SQLHandler,
     GenieHandler,
     VectorSearchHandler,
     ServingHandler,
     ModelsHandler,
     FeatureStoreHandler,
+    # Account-level handlers
+    IAMHandler,
+    BillingHandler,
+    ProvisioningHandler,
+    SettingsHandler,
+    OAuthHandler,
+    AccountUnityCatalogHandler,
 )
 
 # Configure logging
@@ -438,7 +444,7 @@ async def list_tools() -> list[Tool]:
     """List all available Databricks API tools from all handlers."""
     tools = []
 
-    # Collect tools from all handlers
+    # Workspace-level handlers
     tools.extend(ClustersHandler.get_tools())
     tools.extend(JobsHandler.get_tools())
     tools.extend(WorkspaceHandler.get_tools())
@@ -448,13 +454,20 @@ async def list_tools() -> list[Tool]:
     tools.extend(UnityCatalogHandler.get_tools())
     tools.extend(SecretsHandler.get_tools())
     tools.extend(PipelinesHandler.get_tools())
-    tools.extend(AccountHandler.get_tools())
     tools.extend(SQLHandler.get_tools())
     tools.extend(GenieHandler.get_tools())
     tools.extend(VectorSearchHandler.get_tools())
     tools.extend(ServingHandler.get_tools())
     tools.extend(ModelsHandler.get_tools())
     tools.extend(FeatureStoreHandler.get_tools())
+
+    # Account-level handlers
+    tools.extend(IAMHandler.get_tools())
+    tools.extend(BillingHandler.get_tools())
+    tools.extend(ProvisioningHandler.get_tools())
+    tools.extend(SettingsHandler.get_tools())
+    tools.extend(OAuthHandler.get_tools())
+    tools.extend(AccountUnityCatalogHandler.get_tools())
 
     return tools
 
@@ -575,16 +588,110 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             "start_pipeline_update": (PipelinesHandler, w),
             "stop_pipeline": (PipelinesHandler, w),
 
-            # Account
-            "list_account_workspaces": (AccountHandler, a),
-            "get_account_workspace": (AccountHandler, a),
-            "list_account_users": (AccountHandler, a),
-            "get_account_user": (AccountHandler, a),
-            "list_account_groups": (AccountHandler, a),
-            "get_account_group": (AccountHandler, a),
-            "list_account_service_principals": (AccountHandler, a),
-            "list_account_metastores": (AccountHandler, a),
-            "get_account_metastore": (AccountHandler, a),
+            # Account - IAM
+            "list_account_workspaces": (IAMHandler, a),
+            "get_account_workspace": (IAMHandler, a),
+            "create_account_workspace": (IAMHandler, a),
+            "update_account_workspace": (IAMHandler, a),
+            "delete_account_workspace": (IAMHandler, a),
+            "list_account_users": (IAMHandler, a),
+            "get_account_user": (IAMHandler, a),
+            "create_account_user": (IAMHandler, a),
+            "update_account_user": (IAMHandler, a),
+            "delete_account_user": (IAMHandler, a),
+            "list_account_groups": (IAMHandler, a),
+            "get_account_group": (IAMHandler, a),
+            "create_account_group": (IAMHandler, a),
+            "update_account_group": (IAMHandler, a),
+            "delete_account_group": (IAMHandler, a),
+            "list_account_service_principals": (IAMHandler, a),
+            "get_account_service_principal": (IAMHandler, a),
+            "create_account_service_principal": (IAMHandler, a),
+            "update_account_service_principal": (IAMHandler, a),
+            "delete_account_service_principal": (IAMHandler, a),
+            "list_workspace_assignments": (IAMHandler, a),
+            "get_workspace_assignment": (IAMHandler, a),
+            "update_workspace_assignment": (IAMHandler, a),
+            "delete_workspace_assignment": (IAMHandler, a),
+
+            # Account - Billing
+            "download_billable_usage": (BillingHandler, a),
+            "list_budgets": (BillingHandler, a),
+            "get_budget": (BillingHandler, a),
+            "create_budget": (BillingHandler, a),
+            "update_budget": (BillingHandler, a),
+            "delete_budget": (BillingHandler, a),
+            "list_log_delivery": (BillingHandler, a),
+            "get_log_delivery": (BillingHandler, a),
+            "create_log_delivery": (BillingHandler, a),
+            "update_log_delivery": (BillingHandler, a),
+            "list_usage_dashboards": (BillingHandler, a),
+            "create_usage_dashboard": (BillingHandler, a),
+
+            # Account - Provisioning
+            "list_credentials": (ProvisioningHandler, a),
+            "get_credential": (ProvisioningHandler, a),
+            "create_credential": (ProvisioningHandler, a),
+            "delete_credential": (ProvisioningHandler, a),
+            "list_storage_configurations": (ProvisioningHandler, a),
+            "get_storage_configuration": (ProvisioningHandler, a),
+            "create_storage_configuration": (ProvisioningHandler, a),
+            "delete_storage_configuration": (ProvisioningHandler, a),
+            "list_networks": (ProvisioningHandler, a),
+            "get_network": (ProvisioningHandler, a),
+            "create_network": (ProvisioningHandler, a),
+            "delete_network": (ProvisioningHandler, a),
+            "list_vpc_endpoints": (ProvisioningHandler, a),
+            "get_vpc_endpoint": (ProvisioningHandler, a),
+            "create_vpc_endpoint": (ProvisioningHandler, a),
+            "delete_vpc_endpoint": (ProvisioningHandler, a),
+            "list_private_access_settings": (ProvisioningHandler, a),
+            "get_private_access_settings": (ProvisioningHandler, a),
+            "create_private_access_settings": (ProvisioningHandler, a),
+            "replace_private_access_settings": (ProvisioningHandler, a),
+            "delete_private_access_settings": (ProvisioningHandler, a),
+            "list_encryption_keys": (ProvisioningHandler, a),
+            "get_encryption_key": (ProvisioningHandler, a),
+            "create_encryption_key": (ProvisioningHandler, a),
+            "delete_encryption_key": (ProvisioningHandler, a),
+
+            # Account - Settings
+            "list_ip_access_lists": (SettingsHandler, a),
+            "get_ip_access_list": (SettingsHandler, a),
+            "create_ip_access_list": (SettingsHandler, a),
+            "replace_ip_access_list": (SettingsHandler, a),
+            "delete_ip_access_list": (SettingsHandler, a),
+
+            # Account - OAuth
+            "list_custom_app_integrations": (OAuthHandler, a),
+            "get_custom_app_integration": (OAuthHandler, a),
+            "create_custom_app_integration": (OAuthHandler, a),
+            "update_custom_app_integration": (OAuthHandler, a),
+            "delete_custom_app_integration": (OAuthHandler, a),
+            "list_published_app_integrations": (OAuthHandler, a),
+            "get_published_app_integration": (OAuthHandler, a),
+            "create_published_app_integration": (OAuthHandler, a),
+            "update_published_app_integration": (OAuthHandler, a),
+            "delete_published_app_integration": (OAuthHandler, a),
+            "list_service_principal_secrets": (OAuthHandler, a),
+            "create_service_principal_secret": (OAuthHandler, a),
+            "delete_service_principal_secret": (OAuthHandler, a),
+
+            # Account - Unity Catalog
+            "list_account_metastores": (AccountUnityCatalogHandler, a),
+            "get_account_metastore": (AccountUnityCatalogHandler, a),
+            "create_account_metastore": (AccountUnityCatalogHandler, a),
+            "update_account_metastore": (AccountUnityCatalogHandler, a),
+            "delete_account_metastore": (AccountUnityCatalogHandler, a),
+            "list_metastore_assignments": (AccountUnityCatalogHandler, a),
+            "get_metastore_assignment": (AccountUnityCatalogHandler, a),
+            "create_metastore_assignment": (AccountUnityCatalogHandler, a),
+            "update_metastore_assignment": (AccountUnityCatalogHandler, a),
+            "delete_metastore_assignment": (AccountUnityCatalogHandler, a),
+            "list_storage_credentials": (AccountUnityCatalogHandler, a),
+            "get_storage_credential": (AccountUnityCatalogHandler, a),
+            "create_storage_credential": (AccountUnityCatalogHandler, a),
+            "update_storage_credential": (AccountUnityCatalogHandler, a),
 
             # SQL
             "execute_statement": (SQLHandler, w),
