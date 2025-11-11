@@ -469,6 +469,41 @@ async def list_tools() -> list[Tool]:
     tools.extend(OAuthHandler.get_tools())
     tools.extend(AccountUnityCatalogHandler.get_tools())
 
+
+    # Account-level handlers
+    tools.extend(IAMHandler.get_tools())
+    tools.extend(BillingHandler.get_tools())
+    tools.extend(ProvisioningHandler.get_tools())
+    tools.extend(SettingsHandler.get_tools())
+    tools.extend(OAuthHandler.get_tools())
+    tools.extend(AccountUnityCatalogHandler.get_tools())
+    
+    # NEW: Workspace compute additions
+    tools.extend(InstancePoolsHandler.get_tools())
+    tools.extend(ClusterPoliciesHandler.get_tools())
+    
+    # NEW: Workspace ML additions
+    tools.extend(ExperimentsHandler.get_tools())
+    
+    # NEW: Workspace admin
+    tools.extend(WorkspaceIAMHandler.get_tools())
+    tools.extend(WorkspaceSettingsHandler.get_tools())
+    tools.extend(WorkspaceOAuthHandler.get_tools())
+    
+    # NEW: Apps, Dashboards, Sharing
+    tools.extend(AppsHandler.get_tools())
+    tools.extend(DashboardsHandler.get_tools())
+    tools.extend(DeltaSharingHandler.get_tools())
+    
+    # NEW: Governance
+    tools.extend(DataQualityHandler.get_tools())
+    tools.extend(AssetTagsHandler.get_tools())
+    
+    # NEW: Marketplace, CleanRooms, Agents
+    tools.extend(MarketplaceHandler.get_tools())
+    tools.extend(CleanRoomsHandler.get_tools())
+    tools.extend(AgentBricksHandler.get_tools())
+
     return tools
 
 

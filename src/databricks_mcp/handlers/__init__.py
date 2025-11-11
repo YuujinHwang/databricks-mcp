@@ -17,6 +17,8 @@ from .account import (
 from .workspace import (
     # Compute
     ClustersHandler,
+    InstancePoolsHandler,
+    ClusterPoliciesHandler,
     # Jobs & Workflows
     JobsHandler,
     PipelinesHandler,
@@ -24,6 +26,7 @@ from .workspace import (
     ModelsHandler,
     FeatureStoreHandler,
     ServingHandler,
+    ExperimentsHandler,
     # Data Management
     WorkspaceHandler,
     DBFSHandler,
@@ -37,6 +40,25 @@ from .workspace import (
     VectorSearchHandler,
     # Secrets
     SecretsHandler,
+    # Administration
+    WorkspaceIAMHandler,
+    WorkspaceSettingsHandler,
+    WorkspaceOAuthHandler,
+    # Apps
+    AppsHandler,
+    # Dashboards
+    DashboardsHandler,
+    # Sharing
+    DeltaSharingHandler,
+    # Governance
+    DataQualityHandler,
+    AssetTagsHandler,
+    # Marketplace
+    MarketplaceHandler,
+    # Clean Rooms
+    CleanRoomsHandler,
+    # Agents
+    AgentBricksHandler,
 )
 
 __all__ = [
@@ -49,11 +71,14 @@ __all__ = [
     "AccountUnityCatalogHandler",
     # Workspace-level handlers
     "ClustersHandler",
+    "InstancePoolsHandler",
+    "ClusterPoliciesHandler",
     "JobsHandler",
     "PipelinesHandler",
     "ModelsHandler",
     "FeatureStoreHandler",
     "ServingHandler",
+    "ExperimentsHandler",
     "WorkspaceHandler",
     "DBFSHandler",
     "ReposHandler",
@@ -63,4 +88,15 @@ __all__ = [
     "GenieHandler",
     "VectorSearchHandler",
     "SecretsHandler",
+    "WorkspaceIAMHandler",
+    "WorkspaceSettingsHandler",
+    "WorkspaceOAuthHandler",
+    "AppsHandler",
+    "DashboardsHandler",
+    "DeltaSharingHandler",
+    "DataQualityHandler",
+    "AssetTagsHandler",
+    "MarketplaceHandler",
+    "CleanRoomsHandler",
+    "AgentBricksHandler",
 ]
