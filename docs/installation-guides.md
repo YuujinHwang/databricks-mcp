@@ -21,6 +21,7 @@ Complete setup instructions for all major MCP clients and development environmen
 - [7. Windsurf IDE](#7-windsurf-ide)
 - [8. OpenAI Codex (CLI)](#8-openai-codex-cli)
 - [9. Dify](#9-dify)
+- [10. n8n](#10-n8n)
 - [문제 해결](#문제-해결-korean)
 
 ---
@@ -67,6 +68,33 @@ AWS:   https://your-workspace.cloud.databricks.com
 Azure: https://adb-<workspace-id>.<random>.azuredatabricks.net
 GCP:   https://<workspace-id>.gcp.databricks.com
 ```
+
+#### 4. Account API 설정 (선택사항)
+
+**Account-level 작업이 필요한 경우만 설정:**
+
+Account API를 사용하면 다음 작업이 가능합니다:
+- 여러 워크스페이스 관리
+- 사용자 및 그룹 관리
+- 워크스페이스 생성/삭제
+- 계정 수준 권한 관리
+
+**필수 정보:**
+- `DATABRICKS_ACCOUNT_ID`: Account ID (UUID 형식)
+- `DATABRICKS_ACCOUNT_HOST`:
+  - AWS/GCP: `https://accounts.cloud.databricks.com`
+  - Azure: `https://accounts.azuredatabricks.net`
+
+**Account ID 확인 방법:**
+1. Databricks Account Console 접속
+2. 우측 상단 프로필 → Account Settings
+3. Account ID 복사
+
+**권한 요구사항:**
+- Account Admin 역할 필요
+- 또는 Service Principal에 Account Admin 권한 부여
+
+**💡 팁**: Workspace-level 작업만 필요하면 Account API 설정은 건너뛰어도 됩니다.
 
 ---
 
@@ -180,7 +208,47 @@ notepad %APPDATA%\Claude\claude_desktop_config.json
 }
 ```
 
-#### 1.7 설정 적용 및 확인
+#### 1.7 Account API 설정 (Account-level 작업용)
+
+**Account API를 사용하려면** (사용자 관리, 워크스페이스 관리 등):
+
+```json
+{
+  "mcpServers": {
+    "databricks": {
+      "command": "uvx",
+      "args": ["databricks-mcp"],
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_AUTH_TYPE": "oauth-u2m",
+        "DATABRICKS_ACCOUNT_ID": "12345678-90ab-cdef-1234-567890abcdef",
+        "DATABRICKS_ACCOUNT_HOST": "https://accounts.cloud.databricks.com"
+      }
+    }
+  }
+}
+```
+
+**필수 환경 변수:**
+- `DATABRICKS_ACCOUNT_ID`: Databricks Account ID (Account Console에서 확인)
+- `DATABRICKS_ACCOUNT_HOST`: Account API 호스트
+  - AWS/GCP: `https://accounts.cloud.databricks.com`
+  - Azure: `https://accounts.azuredatabricks.net`
+
+**Account ID 확인 방법:**
+1. Databricks Account Console 로그인
+2. 우측 상단 프로필 → Account Settings
+3. Account ID 복사
+
+**사용 가능한 Account-level 도구:**
+- `list_account_workspaces` - 모든 워크스페이스 목록
+- `create_workspace` - 새 워크스페이스 생성
+- `list_account_users` - 계정 사용자 관리
+- `assign_workspace_permissions` - 워크스페이스 권한 할당
+
+⚠️ **권한 요구사항**: Account Admin 권한 필요
+
+#### 1.8 설정 적용 및 확인
 
 1. 설정 파일 저장
 2. Claude Desktop **완전히 종료** (Cmd+Q / Alt+F4)
@@ -189,7 +257,7 @@ notepad %APPDATA%\Claude\claude_desktop_config.json
 5. 입력창 하단에 **🔨 아이콘** (MCP 서버 표시) 확인
 6. 아이콘 클릭하여 "databricks" 서버 활성 상태 확인
 
-#### 1.8 첫 실행 (OAuth 사용 시)
+#### 1.9 첫 실행 (OAuth 사용 시)
 
 OAuth 인증을 사용하는 경우:
 1. 처음 MCP 도구 사용 시 브라우저 창이 자동으로 열립니다
@@ -198,7 +266,7 @@ OAuth 인증을 사용하는 경우:
 4. 브라우저 탭 닫기
 5. Claude Desktop으로 돌아가서 계속 사용
 
-#### 1.9 테스트
+#### 1.10 테스트
 
 Claude Desktop에서 다음과 같이 요청해보세요:
 
@@ -1410,6 +1478,240 @@ User: "What clusters are running in my Databricks workspace?"
 
 ---
 
+### 10. n8n
+
+n8n은 워크플로우 자동화 플랫폼으로, MCP를 클라이언트와 서버 양방향으로 지원합니다.
+
+#### 10.1 n8n MCP 지원 개요
+
+n8n은 두 가지 방식으로 MCP를 지원합니다:
+1. **MCP 클라이언트**: n8n에서 외부 MCP 서버 도구 호출
+2. **MCP 서버**: n8n 워크플로우를 MCP 서버로 노출
+
+#### 10.2 n8n 설치
+
+```bash
+# npm을 통한 전역 설치
+npm install -g n8n
+
+# Docker 사용
+docker run -it --rm --name n8n -p 5678:5678 n8nio/n8n
+
+# npx로 직접 실행
+npx n8n
+```
+
+#### 10.3 MCP Client Tool 노드 사용
+
+n8n에서 Databricks MCP 서버 호출:
+
+**1. 워크플로우 생성:**
+1. n8n 대시보드에서 "New Workflow" 클릭
+2. 노드 추가 → "AI" 카테고리
+3. "MCP Client Tool" 노드 선택
+
+**2. MCP 서버 연결 설정:**
+
+노드 설정에서:
+```json
+{
+  "transport": "stdio",
+  "command": "uvx",
+  "args": ["databricks-mcp"],
+  "env": {
+    "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+    "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+  }
+}
+```
+
+**3. HTTP Streamable 전송 방식:**
+
+원격 MCP 서버를 사용하는 경우:
+```json
+{
+  "transport": "http-streamable",
+  "url": "https://your-mcp-server.com/mcp",
+  "headers": {
+    "Authorization": "Bearer YOUR_TOKEN"
+  }
+}
+```
+
+#### 10.4 Agent에서 MCP 도구 사용
+
+**AI Agent 노드 설정:**
+
+1. **Agent 노드 추가**:
+   - "AI" → "AI Agent" 노드 추가
+   - Model 선택 (OpenAI, Anthropic 등)
+
+2. **MCP Tools 연결**:
+   - Tools 섹션에서 "MCP Client Tool" 추가
+   - Databricks MCP 서버 설정
+
+3. **프롬프트 예제**:
+```
+Input: "List all running Databricks clusters and their current state"
+→ Agent가 자동으로 list_clusters MCP 도구 호출
+→ 결과 분석 및 응답
+```
+
+#### 10.5 n8n을 MCP 서버로 노출
+
+n8n 워크플로우를 MCP 서버로 만들어 Claude, Cursor 등에서 사용:
+
+**1. MCP Server Trigger 노드 사용:**
+
+1. 새 워크플로우 생성
+2. "MCP Server Trigger" 노드 추가
+3. 도구 이름 및 설명 입력:
+   ```
+   Tool Name: query_databricks
+   Description: Execute SQL queries on Databricks and format results
+   ```
+
+4. 파라미터 정의:
+   ```json
+   {
+     "sql": {
+       "type": "string",
+       "description": "SQL query to execute",
+       "required": true
+     },
+     "warehouse_id": {
+       "type": "string",
+       "description": "SQL Warehouse ID"
+     }
+   }
+   ```
+
+5. 워크플로우 로직 구성:
+   - HTTP Request 노드로 Databricks API 호출
+   - 결과 처리 및 포맷팅
+   - Return 노드로 결과 반환
+
+**2. n8n MCP 서버 URL:**
+
+워크플로우 활성화 후 MCP 서버 URL 확인:
+```
+http://localhost:5678/mcp/workflows/<workflow-id>
+```
+
+**3. Claude Desktop에서 n8n MCP 서버 사용:**
+
+```json
+{
+  "mcpServers": {
+    "n8n-databricks": {
+      "url": "http://localhost:5678/mcp/workflows/<workflow-id>",
+      "headers": {
+        "Authorization": "Bearer YOUR_N8N_API_KEY"
+      }
+    }
+  }
+}
+```
+
+#### 10.6 커뮤니티 노드 사용
+
+**n8n-nodes-mcp 설치:**
+
+```bash
+# n8n Community Nodes에서 설치
+cd ~/.n8n
+npm install n8n-nodes-mcp
+```
+
+이 커스텀 노드는 다음을 지원합니다:
+- ✅ HTTP Streamable transport
+- ✅ SSE (Server-Sent Events)
+- ✅ Command-line transport
+- ✅ Bearer & generic header 인증
+
+#### 10.7 실전 예제: Databricks 자동화
+
+**자동화 시나리오: 매일 클러스터 상태 모니터링**
+
+```
+[Schedule Trigger: Daily 9 AM]
+  ↓
+[MCP Client Tool: list_clusters]
+  ↓
+[Code: Filter running clusters]
+  ↓
+[IF: Any cluster issues?]
+  ↓ Yes
+[Slack: Send alert]
+  ↓ No
+[Email: Daily report]
+```
+
+**워크플로우 설정:**
+
+1. **Schedule Trigger** - 매일 오전 9시
+2. **MCP Client Tool** - Databricks MCP 서버 호출
+3. **Code 노드** - 클러스터 상태 분석
+4. **IF 노드** - 문제 감지
+5. **Slack/Email** - 알림 전송
+
+#### 10.8 환경 변수 설정
+
+n8n에서 환경 변수 사용:
+
+**n8n 서버 시작 시:**
+```bash
+export N8N_MCP_DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+export N8N_MCP_DATABRICKS_TOKEN="dapi..."
+
+n8n start
+```
+
+**Docker Compose:**
+```yaml
+version: '3.8'
+services:
+  n8n:
+    image: n8nio/n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_MCP_DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
+      - N8N_MCP_DATABRICKS_TOKEN=dapi...
+    volumes:
+      - n8n_data:/home/node/.n8n
+```
+
+#### 10.9 Account API 설정
+
+Account-level 작업을 위한 설정:
+
+```json
+{
+  "transport": "stdio",
+  "command": "uvx",
+  "args": ["databricks-mcp"],
+  "env": {
+    "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+    "DATABRICKS_AUTH_TYPE": "oauth-u2m",
+    "DATABRICKS_ACCOUNT_ID": "your-account-id",
+    "DATABRICKS_ACCOUNT_HOST": "https://accounts.cloud.databricks.com"
+  }
+}
+```
+
+#### 10.10 테스트
+
+**간단한 테스트 워크플로우:**
+
+1. Manual Trigger 노드 추가
+2. MCP Client Tool 노드 추가 (Databricks 설정)
+3. Tool: `list_clusters`
+4. Parameters: `{}`
+5. Workflow 실행 → 클러스터 목록 확인
+
+---
+
 ### 문제 해결 (Korean)
 
 #### 일반적인 문제
@@ -1623,6 +1925,7 @@ This guide provides detailed setup instructions for the Databricks MCP Server ac
 - [7. Windsurf IDE](#7-windsurf-ide-en)
 - [8. OpenAI Codex (CLI)](#8-openai-codex-cli-en)
 - [9. Dify](#9-dify-en)
+- [10. n8n](#10-n8n-en)
 - [Troubleshooting](#troubleshooting-english)
 
 ---
@@ -1669,6 +1972,33 @@ AWS:   https://your-workspace.cloud.databricks.com
 Azure: https://adb-<workspace-id>.<random>.azuredatabricks.net
 GCP:   https://<workspace-id>.gcp.databricks.com
 ```
+
+#### 4. Account API Configuration (Optional)
+
+**Only configure if you need Account-level operations:**
+
+Account API enables:
+- Multi-workspace management
+- User and group administration
+- Workspace creation/deletion
+- Account-level permissions
+
+**Required Information:**
+- `DATABRICKS_ACCOUNT_ID`: Account ID (UUID format)
+- `DATABRICKS_ACCOUNT_HOST`:
+  - AWS/GCP: `https://accounts.cloud.databricks.com`
+  - Azure: `https://accounts.azuredatabricks.net`
+
+**How to Find Account ID:**
+1. Access Databricks Account Console
+2. Top-right profile → Account Settings
+3. Copy Account ID
+
+**Permission Requirements:**
+- Account Admin role required
+- Or Service Principal with Account Admin permissions
+
+**💡 Tip**: Skip this if you only need Workspace-level operations.
 
 ---
 
@@ -3012,6 +3342,240 @@ User: "What clusters are running in my Databricks workspace?"
 
 ---
 
+### 10. n8n (EN)
+
+n8n is a workflow automation platform with bidirectional MCP support (both client and server).
+
+#### 10.1 n8n MCP Support Overview
+
+n8n supports MCP in two ways:
+1. **MCP Client**: Call external MCP server tools from n8n
+2. **MCP Server**: Expose n8n workflows as MCP servers
+
+#### 10.2 Install n8n
+
+```bash
+# Global installation via npm
+npm install -g n8n
+
+# Using Docker
+docker run -it --rm --name n8n -p 5678:5678 n8nio/n8n
+
+# Run directly with npx
+npx n8n
+```
+
+#### 10.3 Using MCP Client Tool Node
+
+Call Databricks MCP server from n8n:
+
+**1. Create Workflow:**
+1. Click "New Workflow" in n8n dashboard
+2. Add node → "AI" category
+3. Select "MCP Client Tool" node
+
+**2. Configure MCP Server Connection:**
+
+In node settings:
+```json
+{
+  "transport": "stdio",
+  "command": "uvx",
+  "args": ["databricks-mcp"],
+  "env": {
+    "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+    "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+  }
+}
+```
+
+**3. HTTP Streamable Transport:**
+
+For remote MCP servers:
+```json
+{
+  "transport": "http-streamable",
+  "url": "https://your-mcp-server.com/mcp",
+  "headers": {
+    "Authorization": "Bearer YOUR_TOKEN"
+  }
+}
+```
+
+#### 10.4 Using MCP Tools in Agent
+
+**Configure AI Agent Node:**
+
+1. **Add Agent Node**:
+   - "AI" → "AI Agent" node
+   - Select Model (OpenAI, Anthropic, etc.)
+
+2. **Connect MCP Tools**:
+   - Add "MCP Client Tool" in Tools section
+   - Configure Databricks MCP server
+
+3. **Example Prompt**:
+```
+Input: "List all running Databricks clusters and their current state"
+→ Agent automatically calls list_clusters MCP tool
+→ Analyzes and responds with results
+```
+
+#### 10.5 Expose n8n as MCP Server
+
+Make n8n workflows available to Claude, Cursor, etc:
+
+**1. Use MCP Server Trigger Node:**
+
+1. Create new workflow
+2. Add "MCP Server Trigger" node
+3. Enter tool name and description:
+   ```
+   Tool Name: query_databricks
+   Description: Execute SQL queries on Databricks and format results
+   ```
+
+4. Define parameters:
+   ```json
+   {
+     "sql": {
+       "type": "string",
+       "description": "SQL query to execute",
+       "required": true
+     },
+     "warehouse_id": {
+       "type": "string",
+       "description": "SQL Warehouse ID"
+     }
+   }
+   ```
+
+5. Build workflow logic:
+   - HTTP Request node to call Databricks API
+   - Process and format results
+   - Return node to send results back
+
+**2. n8n MCP Server URL:**
+
+After activating workflow, get MCP server URL:
+```
+http://localhost:5678/mcp/workflows/<workflow-id>
+```
+
+**3. Use n8n MCP Server in Claude Desktop:**
+
+```json
+{
+  "mcpServers": {
+    "n8n-databricks": {
+      "url": "http://localhost:5678/mcp/workflows/<workflow-id>",
+      "headers": {
+        "Authorization": "Bearer YOUR_N8N_API_KEY"
+      }
+    }
+  }
+}
+```
+
+#### 10.6 Community Node
+
+**Install n8n-nodes-mcp:**
+
+```bash
+# Install from n8n Community Nodes
+cd ~/.n8n
+npm install n8n-nodes-mcp
+```
+
+This custom node supports:
+- ✅ HTTP Streamable transport
+- ✅ SSE (Server-Sent Events)
+- ✅ Command-line transport
+- ✅ Bearer & generic header authentication
+
+#### 10.7 Real-World Example: Databricks Automation
+
+**Automation Scenario: Daily Cluster Health Monitoring**
+
+```
+[Schedule Trigger: Daily 9 AM]
+  ↓
+[MCP Client Tool: list_clusters]
+  ↓
+[Code: Filter running clusters]
+  ↓
+[IF: Any cluster issues?]
+  ↓ Yes
+[Slack: Send alert]
+  ↓ No
+[Email: Daily report]
+```
+
+**Workflow Configuration:**
+
+1. **Schedule Trigger** - Daily at 9 AM
+2. **MCP Client Tool** - Call Databricks MCP server
+3. **Code Node** - Analyze cluster states
+4. **IF Node** - Detect issues
+5. **Slack/Email** - Send notifications
+
+#### 10.8 Environment Variables
+
+Configure environment variables in n8n:
+
+**When starting n8n server:**
+```bash
+export N8N_MCP_DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+export N8N_MCP_DATABRICKS_TOKEN="dapi..."
+
+n8n start
+```
+
+**Docker Compose:**
+```yaml
+version: '3.8'
+services:
+  n8n:
+    image: n8nio/n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_MCP_DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
+      - N8N_MCP_DATABRICKS_TOKEN=dapi...
+    volumes:
+      - n8n_data:/home/node/.n8n
+```
+
+#### 10.9 Account API Configuration
+
+For Account-level operations:
+
+```json
+{
+  "transport": "stdio",
+  "command": "uvx",
+  "args": ["databricks-mcp"],
+  "env": {
+    "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+    "DATABRICKS_AUTH_TYPE": "oauth-u2m",
+    "DATABRICKS_ACCOUNT_ID": "your-account-id",
+    "DATABRICKS_ACCOUNT_HOST": "https://accounts.cloud.databricks.com"
+  }
+}
+```
+
+#### 10.10 Test
+
+**Simple Test Workflow:**
+
+1. Add Manual Trigger node
+2. Add MCP Client Tool node (configure Databricks)
+3. Tool: `list_clusters`
+4. Parameters: `{}`
+5. Execute workflow → View cluster list
+
+---
+
 ### Troubleshooting (English)
 
 #### Common Issues
@@ -3239,10 +3803,17 @@ Found an error or want to add more clients? Contributions welcome!
 ---
 
 **Last Updated**: 2025-11-11
-**Version**: 1.1.0
+**Version**: 1.2.0
 **Maintained by**: YuujinHwang
 
 ## Changelog
+
+### v1.2.0 (2025-11-11)
+- Added n8n workflow automation platform
+- Added Account API configuration in Prerequisites
+- Added Account API setup to Claude Desktop section
+- Now covers 10 major MCP clients (previously 9)
+- Enhanced Account-level operations documentation
 
 ### v1.1.0 (2025-11-11)
 - Added OpenAI Codex (CLI) setup guide
