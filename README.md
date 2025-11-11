@@ -63,6 +63,8 @@ Add to your Claude Desktop configuration:
 
 Replace `your-workspace` with your actual Databricks workspace URL.
 
+**For other MCP clients (Cursor, Cline, Continue, Zed, Windsurf, etc.)**, see our **[Detailed Installation Guides](docs/installation-guides.md)** 📖
+
 ### First Use
 
 After configuration, restart Claude Desktop. On first use:
@@ -112,6 +114,7 @@ After configuration, restart Claude Desktop. On first use:
 
 ### 📚 Comprehensive Guides
 
+- **[Installation Guides](docs/installation-guides.md)** - Detailed setup for all MCP clients (Claude, Cursor, Cline, etc.) 🆕
 - **[API Reference](docs/api-reference.md)** - Complete documentation of all 82 tools
 - **[Authentication](docs/authentication.md)** - Setup guide for all auth methods
 - **[Configuration](docs/configuration.md)** - Advanced configuration options
@@ -123,6 +126,7 @@ After configuration, restart Claude Desktop. On first use:
 | Need | Document |
 |------|----------|
 | Get started quickly | [Quick Start](#quick-start) |
+| Setup in Cursor, Cline, Zed, etc. | [Installation Guides](docs/installation-guides.md) 🆕 |
 | See what tools are available | [API Reference](docs/api-reference.md) |
 | Set up authentication | [Authentication](docs/authentication.md) |
 | View usage examples | [Examples](docs/examples.md) |
