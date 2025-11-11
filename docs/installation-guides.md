@@ -19,6 +19,8 @@ Complete setup instructions for all major MCP clients and development environmen
 - [5. Continue (VS Code 확장)](#5-continue-vs-code-확장)
 - [6. Zed Editor](#6-zed-editor)
 - [7. Windsurf IDE](#7-windsurf-ide)
+- [8. OpenAI Codex (CLI)](#8-openai-codex-cli)
+- [9. Dify](#9-dify)
 - [문제 해결](#문제-해결-korean)
 
 ---
@@ -979,6 +981,435 @@ Cascade에서:
 
 ---
 
+### 8. OpenAI Codex (CLI)
+
+OpenAI Codex는 터미널에서 실행되는 경량 코딩 에이전트로, MCP 서버를 완전히 지원합니다.
+
+#### 8.1 Codex 설치
+
+```bash
+# npm을 통한 설치
+npm install -g @openai/codex
+
+# 또는 직접 실행
+npx @openai/codex
+```
+
+#### 8.2 설정 파일 위치
+
+```
+~/.codex/config.toml
+```
+
+#### 8.3 MCP 서버 추가
+
+**명령어를 통한 추가:**
+```bash
+codex mcp add databricks \
+  --env DATABRICKS_HOST=https://your-workspace.cloud.databricks.com \
+  --env DATABRICKS_AUTH_TYPE=oauth-u2m \
+  -- uvx databricks-mcp
+```
+
+**PAT 사용:**
+```bash
+codex mcp add databricks \
+  --env DATABRICKS_HOST=https://your-workspace.cloud.databricks.com \
+  --env DATABRICKS_TOKEN=dapi... \
+  -- uvx databricks-mcp
+```
+
+**Service Principal 사용:**
+```bash
+codex mcp add databricks \
+  --env DATABRICKS_HOST=https://your-workspace.cloud.databricks.com \
+  --env DATABRICKS_CLIENT_ID=your-client-id \
+  --env DATABRICKS_CLIENT_SECRET=your-secret \
+  -- uvx databricks-mcp
+```
+
+#### 8.4 수동 설정 (config.toml)
+
+```bash
+# 설정 파일 편집
+nano ~/.codex/config.toml
+```
+
+**기본 설정:**
+```toml
+[[mcp_servers]]
+name = "databricks"
+command = "uvx"
+args = ["databricks-mcp"]
+
+[mcp_servers.env]
+DATABRICKS_HOST = "https://your-workspace.cloud.databricks.com"
+DATABRICKS_AUTH_TYPE = "oauth-u2m"
+```
+
+**여러 워크스페이스 설정:**
+```toml
+[[mcp_servers]]
+name = "databricks-prod"
+command = "uvx"
+args = ["databricks-mcp"]
+
+[mcp_servers.env]
+DATABRICKS_HOST = "https://prod-workspace.cloud.databricks.com"
+DATABRICKS_TOKEN = "dapi_prod..."
+
+[[mcp_servers]]
+name = "databricks-dev"
+command = "uvx"
+args = ["databricks-mcp"]
+
+[mcp_servers.env]
+DATABRICKS_HOST = "https://dev-workspace.cloud.databricks.com"
+DATABRICKS_AUTH_TYPE = "oauth-u2m"
+```
+
+#### 8.5 MCP 서버 목록 확인
+
+```bash
+# Codex TUI에서
+codex
+
+# TUI 내에서
+/mcp
+```
+
+활성 연결된 MCP 서버 목록이 표시됩니다.
+
+#### 8.6 MCP 서버 관리
+
+**서버 제거:**
+```bash
+codex mcp remove databricks
+```
+
+**서버 목록:**
+```bash
+codex mcp list
+```
+
+#### 8.7 Codex를 MCP 서버로 사용
+
+Codex 자체를 MCP 서버로 실행할 수도 있습니다:
+
+```bash
+# MCP 서버로 Codex 시작
+codex mcp-server
+
+# MCP Inspector로 테스트
+npx @modelcontextprotocol/inspector codex mcp-server
+```
+
+#### 8.8 Docker MCP Toolkit 사용
+
+Docker MCP Toolkit을 통해 220개 이상의 MCP 서버에 안전하게 접근할 수 있습니다:
+
+```bash
+# Docker MCP Toolkit 설치
+npm install -g @docker/mcp-toolkit
+
+# Databricks MCP 서버 추가
+docker-mcp add databricks
+```
+
+#### 8.9 테스트
+
+Codex TUI에서:
+```bash
+# Codex 시작
+codex
+
+# 프롬프트에서
+> List all my Databricks clusters
+> Show tables in catalog 'main'
+> Execute SQL: SELECT * FROM samples.nyctaxi.trips LIMIT 5
+```
+
+#### 8.10 OpenAI Agents SDK와 통합
+
+Codex를 OpenAI Agents SDK와 함께 사용:
+
+```python
+from openai import OpenAI
+from codex_mcp import CodexMCPServer
+
+# MCP 서버로 Codex 초기화
+server = CodexMCPServer()
+
+# Agent에서 사용
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "user", "content": "List my Databricks clusters"}
+    ],
+    tools=server.get_tools()
+)
+```
+
+---
+
+### 9. Dify
+
+Dify는 v1.6.0부터 양방향 MCP 지원을 제공하는 LLMOps 플랫폼입니다.
+
+#### 9.1 Dify에서 MCP 서버 사용
+
+Dify는 두 가지 방식으로 MCP를 지원합니다:
+1. **MCP 도구를 Dify로 가져오기** (MCP 서버 소비)
+2. **Dify 앱을 MCP 서버로 게시** (MCP 서버 제공)
+
+#### 9.2 MCP 서버 추가 (Dify에서 사용)
+
+**방법 1: Dify UI를 통한 추가**
+
+1. Dify 워크스페이스에 로그인
+2. **Tools** (도구) 페이지로 이동
+3. **MCP** 섹션 선택
+4. **Add Server** (서버 추가) 클릭
+5. 서버 정보 입력:
+
+```json
+{
+  "name": "databricks",
+  "type": "stdio",
+  "command": "uvx",
+  "args": ["databricks-mcp"],
+  "env": {
+    "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+    "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+  }
+}
+```
+
+**방법 2: 환경 변수 사용**
+
+Dify 서버 환경에서 직접 설정:
+
+```bash
+export DIFY_MCP_SERVERS='[
+  {
+    "name": "databricks",
+    "command": "uvx",
+    "args": ["databricks-mcp"],
+    "env": {
+      "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+      "DATABRICKS_TOKEN": "dapi..."
+    }
+  }
+]'
+```
+
+#### 9.3 Agent 워크플로우에서 사용
+
+**1. Agent 노드 생성:**
+- Workflow에서 **Agent** 노드 추가
+- MCP Tools 섹션에서 **databricks** 선택
+- 사용할 도구 선택:
+  - `list_clusters`
+  - `execute_sql`
+  - `list_tables`
+  - 등
+
+**2. Agent가 자동으로 도구 호출:**
+```
+User: "Show me all running clusters"
+→ Agent가 list_clusters 도구를 자동 호출
+→ 결과 반환
+```
+
+#### 9.4 워크플로우 노드로 사용
+
+**개별 MCP 도구를 노드로 추가:**
+
+1. Workflow 편집기 열기
+2. **Add Node** 클릭
+3. **MCP Tool** 카테고리 선택
+4. **databricks** > **execute_sql** 선택
+5. 파라미터 설정:
+   ```json
+   {
+     "warehouse_id": "{{warehouse_id}}",
+     "sql": "SELECT * FROM main.default.my_table"
+   }
+   ```
+
+이 방식은 LLM 결정 없이 명시적인 호출 순서를 제어합니다.
+
+#### 9.5 Dify 앱을 MCP 서버로 게시
+
+Dify 워크플로우를 MCP 서버로 노출하여 Claude, Cursor 등에서 사용:
+
+**1. 워크플로우 준비:**
+
+Start 노드의 모든 입력 파라미터에 대해:
+- **파라미터 이름**: 명확한 이름 (예: `cluster_name`, `sql_query`)
+- **파라미터 설명**: 상세한 설명 작성
+  ```
+  예: "The name of the Databricks cluster to query"
+  ```
+
+**2. 서비스 설명 작성:**
+
+워크플로우 설정에서:
+```
+Service Description: "Query Databricks clusters and execute SQL through a Dify workflow"
+```
+
+**3. MCP 서버 URL 생성:**
+
+- 설정 완료 후 Dify가 MCP 서버 URL 발급
+- 예: `https://your-dify.com/mcp/v1/workflows/abc123`
+
+**4. Claude Desktop에서 사용:**
+
+```json
+{
+  "mcpServers": {
+    "dify-databricks": {
+      "url": "https://your-dify.com/mcp/v1/workflows/abc123",
+      "headers": {
+        "Authorization": "Bearer YOUR_DIFY_API_KEY"
+      }
+    }
+  }
+}
+```
+
+**5. Cursor에서 사용:**
+
+`.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "dify-databricks": {
+      "url": "https://your-dify.com/mcp/v1/workflows/abc123",
+      "headers": {
+        "Authorization": "Bearer YOUR_DIFY_API_KEY"
+      }
+    }
+  }
+}
+```
+
+#### 9.6 Zapier/Composio 통합
+
+Dify MCP는 Zapier와 Composio를 통해 8,000개 이상의 앱에 접근할 수 있습니다:
+
+**Zapier MCP 추가:**
+1. Tools 페이지에서 **MCP** 선택
+2. **Zapier** 서버 추가
+3. Zapier API 키 입력
+4. 사용할 Zapier Actions 선택
+
+**사용 예:**
+```
+"Databricks에서 데이터를 쿼리하고 결과를 Google Sheets에 저장"
+→ Databricks MCP로 데이터 가져오기
+→ Zapier MCP로 Google Sheets에 쓰기
+```
+
+#### 9.7 커뮤니티 MCP 서버 (dify-mcp-server)
+
+서드파티 MCP 서버를 사용하여 Dify 워크플로우 호출:
+
+**설치:**
+```bash
+npm install -g dify-mcp-server
+```
+
+**설정:**
+```yaml
+# config.yaml
+dify:
+  base_url: https://your-dify.com
+  app_sks:
+    - app-abc123-secret-key-1
+    - app-def456-secret-key-2
+```
+
+**실행:**
+```bash
+dify-mcp-server --config config.yaml
+```
+
+**Claude Desktop 설정:**
+```json
+{
+  "mcpServers": {
+    "dify": {
+      "command": "dify-mcp-server",
+      "args": ["--config", "/path/to/config.yaml"]
+    }
+  }
+}
+```
+
+#### 9.8 설정 확인
+
+**MCP 서버 상태 확인:**
+1. Dify Tools 페이지 열기
+2. MCP 섹션에서 연결 상태 확인
+3. 녹색 표시 = 정상 연결
+
+**도구 테스트:**
+1. Workflow에서 Agent 노드 생성
+2. "List my Databricks clusters" 요청
+3. Agent가 MCP 도구를 호출하는지 확인
+
+#### 9.9 고급 설정
+
+**여러 Databricks 워크스페이스:**
+
+```json
+[
+  {
+    "name": "databricks-prod",
+    "command": "uvx",
+    "args": ["databricks-mcp"],
+    "env": {
+      "DATABRICKS_HOST": "https://prod.cloud.databricks.com",
+      "DATABRICKS_TOKEN": "dapi_prod..."
+    }
+  },
+  {
+    "name": "databricks-dev",
+    "command": "uvx",
+    "args": ["databricks-mcp"],
+    "env": {
+      "DATABRICKS_HOST": "https://dev.cloud.databricks.com",
+      "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+    }
+  }
+]
+```
+
+**권한 설정:**
+- Dify Admin 권한으로 MCP 서버 추가
+- 팀 멤버에게 도구 사용 권한 부여
+- API 키 별도 관리
+
+#### 9.10 테스트
+
+**Agent 워크플로우에서:**
+```
+User: "What clusters are running in my Databricks workspace?"
+→ Dify Agent가 databricks MCP 서버 호출
+→ list_clusters 도구 사용
+→ 결과를 자연어로 포맷팅하여 반환
+```
+
+**워크플로우 노드로:**
+```
+[Start] → [MCP: list_clusters] → [LLM: 결과 분석] → [End]
+```
+
+---
+
 ### 문제 해결 (Korean)
 
 #### 일반적인 문제
@@ -1190,6 +1621,8 @@ This guide provides detailed setup instructions for the Databricks MCP Server ac
 - [5. Continue (VS Code Extension)](#5-continue-vs-code-extension)
 - [6. Zed Editor](#6-zed-editor-en)
 - [7. Windsurf IDE](#7-windsurf-ide-en)
+- [8. OpenAI Codex (CLI)](#8-openai-codex-cli-en)
+- [9. Dify](#9-dify-en)
 - [Troubleshooting](#troubleshooting-english)
 
 ---
@@ -2150,6 +2583,435 @@ In Cascade:
 
 ---
 
+### 8. OpenAI Codex (CLI) (EN)
+
+OpenAI Codex is a lightweight coding agent that runs in your terminal with full MCP server support.
+
+#### 8.1 Install Codex
+
+```bash
+# Install via npm
+npm install -g @openai/codex
+
+# Or run directly
+npx @openai/codex
+```
+
+#### 8.2 Configuration File Location
+
+```
+~/.codex/config.toml
+```
+
+#### 8.3 Add MCP Server
+
+**Via command line:**
+```bash
+codex mcp add databricks \
+  --env DATABRICKS_HOST=https://your-workspace.cloud.databricks.com \
+  --env DATABRICKS_AUTH_TYPE=oauth-u2m \
+  -- uvx databricks-mcp
+```
+
+**Using PAT:**
+```bash
+codex mcp add databricks \
+  --env DATABRICKS_HOST=https://your-workspace.cloud.databricks.com \
+  --env DATABRICKS_TOKEN=dapi... \
+  -- uvx databricks-mcp
+```
+
+**Using Service Principal:**
+```bash
+codex mcp add databricks \
+  --env DATABRICKS_HOST=https://your-workspace.cloud.databricks.com \
+  --env DATABRICKS_CLIENT_ID=your-client-id \
+  --env DATABRICKS_CLIENT_SECRET=your-secret \
+  -- uvx databricks-mcp
+```
+
+#### 8.4 Manual Configuration (config.toml)
+
+```bash
+# Edit configuration file
+nano ~/.codex/config.toml
+```
+
+**Basic configuration:**
+```toml
+[[mcp_servers]]
+name = "databricks"
+command = "uvx"
+args = ["databricks-mcp"]
+
+[mcp_servers.env]
+DATABRICKS_HOST = "https://your-workspace.cloud.databricks.com"
+DATABRICKS_AUTH_TYPE = "oauth-u2m"
+```
+
+**Multiple workspaces:**
+```toml
+[[mcp_servers]]
+name = "databricks-prod"
+command = "uvx"
+args = ["databricks-mcp"]
+
+[mcp_servers.env]
+DATABRICKS_HOST = "https://prod-workspace.cloud.databricks.com"
+DATABRICKS_TOKEN = "dapi_prod..."
+
+[[mcp_servers]]
+name = "databricks-dev"
+command = "uvx"
+args = ["databricks-mcp"]
+
+[mcp_servers.env]
+DATABRICKS_HOST = "https://dev-workspace.cloud.databricks.com"
+DATABRICKS_AUTH_TYPE = "oauth-u2m"
+```
+
+#### 8.5 View MCP Server List
+
+```bash
+# In Codex TUI
+codex
+
+# Inside TUI
+/mcp
+```
+
+This displays your actively connected MCP servers.
+
+#### 8.6 Manage MCP Servers
+
+**Remove server:**
+```bash
+codex mcp remove databricks
+```
+
+**List servers:**
+```bash
+codex mcp list
+```
+
+#### 8.7 Use Codex as MCP Server
+
+You can also run Codex itself as an MCP server:
+
+```bash
+# Start Codex as MCP server
+codex mcp-server
+
+# Test with MCP Inspector
+npx @modelcontextprotocol/inspector codex mcp-server
+```
+
+#### 8.8 Docker MCP Toolkit
+
+Access 220+ MCP servers securely through Docker MCP Toolkit:
+
+```bash
+# Install Docker MCP Toolkit
+npm install -g @docker/mcp-toolkit
+
+# Add Databricks MCP server
+docker-mcp add databricks
+```
+
+#### 8.9 Test
+
+In Codex TUI:
+```bash
+# Start Codex
+codex
+
+# In prompt
+> List all my Databricks clusters
+> Show tables in catalog 'main'
+> Execute SQL: SELECT * FROM samples.nyctaxi.trips LIMIT 5
+```
+
+#### 8.10 Integration with OpenAI Agents SDK
+
+Use Codex with OpenAI Agents SDK:
+
+```python
+from openai import OpenAI
+from codex_mcp import CodexMCPServer
+
+# Initialize Codex as MCP server
+server = CodexMCPServer()
+
+# Use in Agent
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "user", "content": "List my Databricks clusters"}
+    ],
+    tools=server.get_tools()
+)
+```
+
+---
+
+### 9. Dify (EN)
+
+Dify is an LLMOps platform with two-way MCP support since v1.6.0.
+
+#### 9.1 MCP Support in Dify
+
+Dify supports MCP in two ways:
+1. **Consume MCP tools in Dify** (MCP client)
+2. **Publish Dify apps as MCP servers** (MCP server)
+
+#### 9.2 Add MCP Server (Use in Dify)
+
+**Method 1: Via Dify UI**
+
+1. Log into Dify workspace
+2. Navigate to **Tools** page
+3. Select **MCP** section
+4. Click **Add Server**
+5. Enter server information:
+
+```json
+{
+  "name": "databricks",
+  "type": "stdio",
+  "command": "uvx",
+  "args": ["databricks-mcp"],
+  "env": {
+    "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+    "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+  }
+}
+```
+
+**Method 2: Environment Variables**
+
+Set directly in Dify server environment:
+
+```bash
+export DIFY_MCP_SERVERS='[
+  {
+    "name": "databricks",
+    "command": "uvx",
+    "args": ["databricks-mcp"],
+    "env": {
+      "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+      "DATABRICKS_TOKEN": "dapi..."
+    }
+  }
+]'
+```
+
+#### 9.3 Use in Agent Workflows
+
+**1. Create Agent Node:**
+- Add **Agent** node in Workflow
+- Select **databricks** in MCP Tools section
+- Choose tools to use:
+  - `list_clusters`
+  - `execute_sql`
+  - `list_tables`
+  - etc.
+
+**2. Agent automatically calls tools:**
+```
+User: "Show me all running clusters"
+→ Agent automatically calls list_clusters tool
+→ Returns results
+```
+
+#### 9.4 Use as Workflow Nodes
+
+**Add individual MCP tools as nodes:**
+
+1. Open Workflow editor
+2. Click **Add Node**
+3. Select **MCP Tool** category
+4. Choose **databricks** > **execute_sql**
+5. Set parameters:
+   ```json
+   {
+     "warehouse_id": "{{warehouse_id}}",
+     "sql": "SELECT * FROM main.default.my_table"
+   }
+   ```
+
+This approach provides explicit call ordering without LLM decisions.
+
+#### 9.5 Publish Dify Apps as MCP Servers
+
+Expose Dify workflows as MCP servers for use in Claude, Cursor, etc:
+
+**1. Prepare Workflow:**
+
+For all input parameters in Start node:
+- **Parameter Name**: Clear name (e.g., `cluster_name`, `sql_query`)
+- **Parameter Description**: Detailed description
+  ```
+  Example: "The name of the Databricks cluster to query"
+  ```
+
+**2. Write Service Description:**
+
+In workflow settings:
+```
+Service Description: "Query Databricks clusters and execute SQL through a Dify workflow"
+```
+
+**3. Generate MCP Server URL:**
+
+- After setup, Dify issues MCP server URL
+- Example: `https://your-dify.com/mcp/v1/workflows/abc123`
+
+**4. Use in Claude Desktop:**
+
+```json
+{
+  "mcpServers": {
+    "dify-databricks": {
+      "url": "https://your-dify.com/mcp/v1/workflows/abc123",
+      "headers": {
+        "Authorization": "Bearer YOUR_DIFY_API_KEY"
+      }
+    }
+  }
+}
+```
+
+**5. Use in Cursor:**
+
+`.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "dify-databricks": {
+      "url": "https://your-dify.com/mcp/v1/workflows/abc123",
+      "headers": {
+        "Authorization": "Bearer YOUR_DIFY_API_KEY"
+      }
+    }
+  }
+}
+```
+
+#### 9.6 Zapier/Composio Integration
+
+Dify MCP provides access to 8,000+ apps through Zapier and Composio:
+
+**Add Zapier MCP:**
+1. Select **MCP** on Tools page
+2. Add **Zapier** server
+3. Enter Zapier API key
+4. Select Zapier Actions to use
+
+**Usage example:**
+```
+"Query data from Databricks and save results to Google Sheets"
+→ Get data with Databricks MCP
+→ Write to Google Sheets with Zapier MCP
+```
+
+#### 9.7 Community MCP Server (dify-mcp-server)
+
+Use third-party MCP server to call Dify workflows:
+
+**Installation:**
+```bash
+npm install -g dify-mcp-server
+```
+
+**Configuration:**
+```yaml
+# config.yaml
+dify:
+  base_url: https://your-dify.com
+  app_sks:
+    - app-abc123-secret-key-1
+    - app-def456-secret-key-2
+```
+
+**Run:**
+```bash
+dify-mcp-server --config config.yaml
+```
+
+**Claude Desktop configuration:**
+```json
+{
+  "mcpServers": {
+    "dify": {
+      "command": "dify-mcp-server",
+      "args": ["--config", "/path/to/config.yaml"]
+    }
+  }
+}
+```
+
+#### 9.8 Verify Configuration
+
+**Check MCP server status:**
+1. Open Dify Tools page
+2. Check connection status in MCP section
+3. Green indicator = connected
+
+**Test tools:**
+1. Create Agent node in Workflow
+2. Request "List my Databricks clusters"
+3. Verify Agent calls MCP tools
+
+#### 9.9 Advanced Configuration
+
+**Multiple Databricks workspaces:**
+
+```json
+[
+  {
+    "name": "databricks-prod",
+    "command": "uvx",
+    "args": ["databricks-mcp"],
+    "env": {
+      "DATABRICKS_HOST": "https://prod.cloud.databricks.com",
+      "DATABRICKS_TOKEN": "dapi_prod..."
+    }
+  },
+  {
+    "name": "databricks-dev",
+    "command": "uvx",
+    "args": ["databricks-mcp"],
+    "env": {
+      "DATABRICKS_HOST": "https://dev.cloud.databricks.com",
+      "DATABRICKS_AUTH_TYPE": "oauth-u2m"
+    }
+  }
+]
+```
+
+**Permission settings:**
+- Add MCP servers with Dify Admin rights
+- Grant tool usage permissions to team members
+- Manage API keys separately
+
+#### 9.10 Test
+
+**In Agent workflow:**
+```
+User: "What clusters are running in my Databricks workspace?"
+→ Dify Agent calls databricks MCP server
+→ Uses list_clusters tool
+→ Returns results formatted in natural language
+```
+
+**As workflow nodes:**
+```
+[Start] → [MCP: list_clusters] → [LLM: Analyze results] → [End]
+```
+
+---
+
 ### Troubleshooting (English)
 
 #### Common Issues
@@ -2377,5 +3239,16 @@ Found an error or want to add more clients? Contributions welcome!
 ---
 
 **Last Updated**: 2025-11-11
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Maintained by**: YuujinHwang
+
+## Changelog
+
+### v1.1.0 (2025-11-11)
+- Added OpenAI Codex (CLI) setup guide
+- Added Dify platform configuration
+- Now covers 9 major MCP clients (previously 7)
+
+### v1.0.0 (2025-11-11)
+- Initial release with 7 MCP clients
+- Bilingual documentation (Korean/English)
