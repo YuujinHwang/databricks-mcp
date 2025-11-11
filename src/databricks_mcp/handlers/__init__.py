@@ -1,24 +1,9 @@
 """
 Databricks MCP Handlers
-Organized by Databricks API documentation structure
+Organized by Databricks API documentation structure (docs.databricks.com/api)
 """
-from .clusters import ClustersHandler
-from .jobs import JobsHandler
-from .workspace import WorkspaceHandler
-from .dbfs import DBFSHandler
-from .repos import ReposHandler
-from .warehouses import WarehousesHandler
-from .unity_catalog import UnityCatalogHandler
-from .secrets import SecretsHandler
-from .pipelines import PipelinesHandler
-from .sql import SQLHandler
-from .genie import GenieHandler
-from .vector_search import VectorSearchHandler
-from .serving import ServingHandler
-from .models import ModelsHandler
-from .feature_store import FeatureStoreHandler
 
-# Account-level handlers
+# Account-level handlers (docs.databricks.com/api/account)
 from .account import (
     IAMHandler,
     BillingHandler,
@@ -28,22 +13,33 @@ from .account import (
     AccountUnityCatalogHandler,
 )
 
+# Workspace-level handlers (docs.databricks.com/api/workspace)
+from .workspace import (
+    # Compute
+    ClustersHandler,
+    # Jobs & Workflows
+    JobsHandler,
+    PipelinesHandler,
+    # Machine Learning
+    ModelsHandler,
+    FeatureStoreHandler,
+    ServingHandler,
+    # Data Management
+    WorkspaceHandler,
+    DBFSHandler,
+    ReposHandler,
+    UnityCatalogHandler,
+    # SQL & Analytics
+    SQLHandler,
+    WarehousesHandler,
+    GenieHandler,
+    # Vector Search
+    VectorSearchHandler,
+    # Secrets
+    SecretsHandler,
+)
+
 __all__ = [
-    "ClustersHandler",
-    "JobsHandler",
-    "WorkspaceHandler",
-    "DBFSHandler",
-    "ReposHandler",
-    "WarehousesHandler",
-    "UnityCatalogHandler",
-    "SecretsHandler",
-    "PipelinesHandler",
-    "SQLHandler",
-    "GenieHandler",
-    "VectorSearchHandler",
-    "ServingHandler",
-    "ModelsHandler",
-    "FeatureStoreHandler",
     # Account-level handlers
     "IAMHandler",
     "BillingHandler",
@@ -51,4 +47,20 @@ __all__ = [
     "SettingsHandler",
     "OAuthHandler",
     "AccountUnityCatalogHandler",
+    # Workspace-level handlers
+    "ClustersHandler",
+    "JobsHandler",
+    "PipelinesHandler",
+    "ModelsHandler",
+    "FeatureStoreHandler",
+    "ServingHandler",
+    "WorkspaceHandler",
+    "DBFSHandler",
+    "ReposHandler",
+    "UnityCatalogHandler",
+    "SQLHandler",
+    "WarehousesHandler",
+    "GenieHandler",
+    "VectorSearchHandler",
+    "SecretsHandler",
 ]
